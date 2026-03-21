@@ -1,0 +1,268 @@
+/* Navbar Styles */
+.navbar {
+  background: #1f2937;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.navbar-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 64px;
+}
+
+/* Логотип */
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.navbar-logo-text {
+  font-size: 1.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.navbar-logo-icon {
+  font-size: 1.75rem;
+  color: #8b5cf6;
+}
+
+/* Навигационные ссылки */
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.navbar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #9ca3af;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+}
+
+.navbar-link:hover {
+  color: white;
+  background: #374151;
+}
+
+.navbar-link.active {
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+/* Кнопки */
+.navbar-buttons {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.navbar-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navbar-btn-login {
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid #4b5563;
+}
+
+.navbar-btn-login:hover {
+  background: #374151;
+  color: white;
+  border-color: #6b7280;
+}
+
+.navbar-btn-register {
+  background: #8b5cf6;
+  color: white;
+  border: none;
+}
+
+.navbar-btn-register:hover {
+  background: #7c3aed;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* Аватар пользователя */
+.navbar-user {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  position: relative;
+}
+
+.navbar-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #8b5cf6;
+  transition: all 0.3s ease;
+}
+
+.navbar-avatar:hover {
+  transform: scale(1.05);
+  border-color: #a78bfa;
+}
+
+.navbar-username {
+  color: white;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.navbar-chevron {
+  color: #9ca3af;
+  font-size: 0.8rem;
+  transition: transform 0.3s ease;
+}
+
+.navbar-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Выпадающее меню */
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: #1f2937;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  min-width: 200px;
+  overflow: hidden;
+  z-index: 1000;
+  border: 1px solid #374151;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: #d1d5db;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.dropdown-item:hover {
+  background: #374151;
+  color: white;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #374151;
+  margin: 0.5rem 0;
+}
+
+.dropdown-item-danger {
+  color: #ef4444;
+}
+
+.dropdown-item-danger:hover {
+  background: #374151;
+  color: #f87171;
+}
+
+/* Мобильное меню (бургер) */
+.navbar-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .navbar-menu-btn {
+    display: block;
+  }
+  
+  .navbar-links {
+    display: none;
+    position: absolute;
+    top: 64px;
+    left: 0;
+    right: 0;
+    background: #1f2937;
+    flex-direction: column;
+    padding: 1rem;
+    gap: 0.5rem;
+    border-top: 1px solid #374151;
+  }
+  
+  .navbar-links.mobile-open {
+    display: flex;
+  }
+  
+  .navbar-link {
+    width: 100%;
+    padding: 0.75rem;
+  }
+  
+  .navbar-buttons {
+    display: none;
+  }
+  
+  .navbar-buttons.mobile-open {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+  }
+  
+  .navbar-user {
+    margin-left: auto;
+  }
+  
+  .navbar-username {
+    display: none;
+  }
+}

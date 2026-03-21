@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import LoadingSpinner from '../common/LoadingSpinner'
 
 const AuthCallback = () => {
   const navigate = useNavigate()
@@ -18,7 +17,8 @@ const AuthCallback = () => {
       }
 
       if (data.session) {
-        // Проверяем/создаем профиль через триггер
+        // Ждем создания профиля через триггер
+        await new Promise(resolve => setTimeout(resolve, 1500))
         navigate('/profile')
       }
     }
@@ -28,17 +28,25 @@ const AuthCallback = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-red-900/50 border border-red-500 text-red-200 px-6 py-4 rounded-lg">
-          Ошибка: {error}. Перенаправление...
+      <div className="auth-container">
+        <div className="auth-card">
+          <h2 className="auth-subtitle">Ошибка авторизации</h2>
+          <div className="auth-error">{error}</div>
+          <button onClick={() => navigate('/login')} className="btn btn-primary">
+            Вернуться на главную
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <LoadingSpinner />
+    <div className="auth-container">
+      <div className="auth-card" style={{ textAlign: 'center' }}>
+        <h2 className="auth-subtitle">Вход через Twitch</h2>
+        <div className="spinner" style={{ margin: '1rem auto' }}></div>
+        <p>Перенаправление...</p>
+      </div>
     </div>
   )
 }
