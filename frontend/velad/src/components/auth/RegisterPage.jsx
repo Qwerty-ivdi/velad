@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/supabase'  // ← добавляем импорт api
 import { FaTwitch, FaUser, FaEnvelope, FaLock } from 'react-icons/fa'
 import '../../styles/auth.css'
 
-const RegisterPage = () => {
+const RegisterPage = ({ setUser }) => {  // ← добавляем setUser в пропсы
   const navigate = useNavigate()
   const [formData, setFormData] = useState({
     username: '',
@@ -28,7 +28,6 @@ const RegisterPage = () => {
     setLoading(true)
     setError(null)
 
-    // Валидация
     if (formData.password !== formData.confirmPassword) {
       setError('Пароли не совпадают')
       setLoading(false)
@@ -42,61 +41,37 @@ const RegisterPage = () => {
     }
 
     try {
-      // 1. Регистрация пользователя в Supabase Auth
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      // 1. Регистрация
+      const result = await api.register({
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            username: formData.username,
-            display_name: formData.displayName,
-            avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.displayName)}&background=9146FF&color=fff&size=128`
-          }
-        }
+        username: formData.username,
+        display_name: formData.displayName
       })
-
-      if (signUpError) {
-        throw signUpError
+      
+      console.log('Registration successful:', result)
+      
+      // 2. Автоматический вход после регистрации
+      const loginResult = await api.login({
+        email: formData.email,
+        password: formData.password
+      })
+      
+      // 3. Сохраняем токен и пользователя
+      api.setToken(loginResult.access_token)
+      api.setUser(loginResult.user)
+      
+      // 4. Обновляем состояние в App
+      if (setUser) {
+        setUser(loginResult.user)
       }
-
-      if (!authData.user) {
-        throw new Error('Ошибка при создании пользователя')
-      }
-
-      // 2. Ждем создания профиля (триггер сработает автоматически)
-      // Делаем небольшую задержку, чтобы триггер успел сработать
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // 3. Проверяем, создался ли профиль
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single()
-
-      if (profileError) {
-        // Если профиль не создался, создаем вручную
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            username: formData.username,
-            display_name: formData.displayName,
-            email: formData.email,
-            avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.displayName)}&background=9146FF&color=fff&size=128`
-          })
-
-        if (insertError) {
-          console.error('Error creating profile:', insertError)
-        }
-      }
-
-      // 4. Перенаправляем на страницу профиля
+      
+      // 5. Перенаправляем на профиль
       navigate('/profile')
       
     } catch (err) {
-      setError(err.message || 'Ошибка при регистрации')
       console.error('Registration error:', err)
+      setError(err.message || 'Ошибка при регистрации')
     } finally {
       setLoading(false)
     }
@@ -104,17 +79,8 @@ const RegisterPage = () => {
 
   const handleTwitchRegister = async () => {
     setLoading(true)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'twitch',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`
-      }
-    })
-    
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    }
+    // Twitch OAuth через бэкенд
+    window.location.href = 'http://localhost:5000/api/auth/twitch/auth'
   }
 
   return (

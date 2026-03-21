@@ -1,64 +1,39 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { useNavigate, Link } from 'react-router-dom'
+import { api } from '../../lib/supabase'  // ← импорт api
 import { FaTwitch, FaEnvelope, FaLock } from 'react-icons/fa'
 import '../../styles/auth.css'
 
-const LoginPage = () => {
+const LoginPage = ({ setUser }) => {  // ← добавляем setUser
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [message, setMessage] = useState(null)
 
   const handleEmailLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
     
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
-    
-    if (error) {
-      setError(error.message)
-    }
-    setLoading(false)
-  }
-
-  const handleTwitchLogin = async () => {
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'twitch',
-      options: {
-        redirectTo: window.location.origin + '/auth/callback'
+    try {
+      const result = await api.login({ email, password })
+      api.setToken(result.access_token)
+      api.setUser(result.user)
+      if (setUser) {
+        setUser(result.user)
       }
-    })
-    
-    if (error) {
-      setError(error.message)
+      navigate('/profile')
+    } catch (err) {
+      setError(err.message)
+    } finally {
       setLoading(false)
     }
   }
 
-  const handlePasswordReset = async () => {
-    if (!email) {
-      setError('Введите email для сброса пароля')
-      return
-    }
-    
+  const handleTwitchLogin = async () => {
     setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + '/auth/callback'
-    })
-    
-    if (error) {
-      setError(error.message)
-    } else {
-      setMessage('Проверьте почту для сброса пароля')
-    }
-    setLoading(false)
+    window.location.href = 'http://localhost:5000/api/auth/twitch/auth'
   }
 
   return (
@@ -71,17 +46,7 @@ const LoginPage = () => {
           Или <Link to="/register">зарегистрируйтесь</Link>
         </div>
 
-        {error && (
-          <div className="auth-error">
-            {error}
-          </div>
-        )}
-
-        {message && (
-          <div className="auth-success">
-            {message}
-          </div>
-        )}
+        {error && <div className="auth-error">{error}</div>}
 
         <form onSubmit={handleEmailLogin}>
           <div className="form-group">
@@ -112,32 +77,14 @@ const LoginPage = () => {
             </div>
           </div>
 
-          <div className="forgot-password">
-            <button type="button" onClick={handlePasswordReset}>
-              Забыли пароль?
-            </button>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary"
-            style={{ width: '100%' }}
-          >
+          <button type="submit" disabled={loading} className="btn btn-primary">
             {loading ? 'Вход...' : 'Войти'}
           </button>
         </form>
 
-        <div className="divider">
-          <span>Или продолжить с</span>
-        </div>
+        <div className="divider"><span>Или продолжить с</span></div>
 
-        <button
-          onClick={handleTwitchLogin}
-          disabled={loading}
-          className="btn btn-twitch"
-          style={{ width: '100%' }}
-        >
+        <button onClick={handleTwitchLogin} disabled={loading} className="btn btn-twitch">
           <FaTwitch /> Войти через Twitch
         </button>
       </div>

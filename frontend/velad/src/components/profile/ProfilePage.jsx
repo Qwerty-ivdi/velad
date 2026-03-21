@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
-import { FaTwitch, FaCalendar, FaMapMarkerAlt, FaLink, FaEdit, FaUserFriends } from 'react-icons/fa'
+import { api } from '../../lib/supabase'  // ← используем api вместо supabase
+import { FaTwitch, FaCalendar, FaMapMarkerAlt, FaLink, FaEdit } from 'react-icons/fa'
 import '../../styles/profile.css'
 
-const ProfilePage = ({ user: currentUser }) => {
+const ProfilePage = ({ user: currentUser, setUser }) => {
   const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -28,43 +28,22 @@ const ProfilePage = ({ user: currentUser }) => {
   const fetchProfile = async () => {
     try {
       setLoading(true)
+      const token = api.getToken()
       
-      // Получаем профиль из БД
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', currentUser.id)
-        .single()
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        throw profileError
+      if (!token) {
+        throw new Error('Нет токена авторизации')
       }
-
-      if (profileData) {
-        setProfile(profileData)
-        setEditForm({
-          display_name: profileData.display_name || '',
-          bio: profileData.bio || '',
-          location: profileData.location || '',
-          website: profileData.website || ''
-        })
-      } else {
-        // Если профиля нет, создаем
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            id: currentUser.id,
-            username: currentUser.user_metadata?.username || currentUser.email?.split('@')[0],
-            display_name: currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0],
-            email: currentUser.email,
-            avatar_url: currentUser.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${currentUser.email?.split('@')[0]}&background=9146FF&color=fff&size=128`
-          })
-          .select()
-          .single()
-
-        if (createError) throw createError
-        setProfile(newProfile)
-      }
+      
+      // Используем API вместо supabase
+      const profileData = await api.getProfile(token)
+      setProfile(profileData)
+      
+      setEditForm({
+        display_name: profileData.display_name || '',
+        bio: profileData.bio || '',
+        location: profileData.location || '',
+        website: profileData.website || ''
+      })
     } catch (err) {
       setError(err.message)
       console.error('Error fetching profile:', err)
@@ -78,23 +57,18 @@ const ProfilePage = ({ user: currentUser }) => {
     setLoading(true)
     
     try {
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          display_name: editForm.display_name,
-          bio: editForm.bio,
-          location: editForm.location,
-          website: editForm.website,
-          updated_at: new Date()
-        })
-        .eq('id', currentUser.id)
-
-      if (updateError) throw updateError
-      
-      setProfile({
-        ...profile,
-        ...editForm
+      const token = api.getToken()
+      const updated = await api.updateProfile(token, {
+        display_name: editForm.display_name,
+        bio: editForm.bio,
+        location: editForm.location,
+        website: editForm.website
       })
+      
+      setProfile(updated.user)
+      if (setUser) {
+        setUser({ ...currentUser, ...updated.user })
+      }
       setIsEditing(false)
     } catch (err) {
       setError(err.message)
@@ -152,7 +126,6 @@ const ProfilePage = ({ user: currentUser }) => {
               src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.display_name}&background=9146FF&color=fff&size=128`}
               alt={profile.display_name}
             />
-            {profile.is_live && <span className="live-indicator"></span>}
           </div>
 
           <div className="profile-details">
@@ -188,16 +161,6 @@ const ProfilePage = ({ user: currentUser }) => {
           )}
 
           <div className="profile-meta">
-            {profile.twitch_login && (
-              <a
-                href={`https://twitch.tv/${profile.twitch_login}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="meta-item"
-              >
-                <FaTwitch /> {profile.twitch_login}
-              </a>
-            )}
             {profile.location && (
               <span className="meta-item">
                 <FaMapMarkerAlt /> {profile.location}
@@ -264,7 +227,7 @@ const ProfilePage = ({ user: currentUser }) => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Веб-сайт</label>
+                  <label className="form-label">Ссылка на twitch канал</label>
                   <input
                     type="url"
                     value={editForm.website}

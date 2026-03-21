@@ -1,220 +1,146 @@
+import bcrypt
+import uuid
+import jwt
+import datetime
 from flask import Blueprint, request, jsonify, current_app
-from app.services.supabase_service import supabase_service
+from app.services.db_service import db_service
 import re
 
 auth_bp = Blueprint('auth', __name__)
 
+
 def validate_email(email):
-    """Проверка формата email"""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
+
 def validate_username(username):
-    """Проверка имени пользователя"""
     if len(username) < 3 or len(username) > 30:
         return False
     return re.match(r'^[a-zA-Z0-9_-]+$', username) is not None
 
+
 @auth_bp.route('/register', methods=['POST'])
 def register():
-    """
-    Регистрация нового пользователя
-    Ожидает: {
-        "email": "user@example.com",
-        "password": "password123",
-        "username": "username",
-        "display_name": "Display Name"
-    }
-    """
     try:
         data = request.get_json()
-        
-        # Валидация данных
-        required_fields = ['email', 'password', 'username', 'display_name']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'error': f'Поле {field} обязательно'}), 400
-        
-        email = data['email']
-        password = data['password']
-        username = data['username']
-        display_name = data['display_name']
-        
-        # Проверка email
+
+        email = data.get('email')
+        password = data.get('password')
+        username = data.get('username')
+        display_name = data.get('display_name')
+
+        print(f"📝 Registration attempt for: {email}")
+
+        # Валидация
+        if not all([email, password, username, display_name]):
+            return jsonify({'error': 'Все поля обязательны'}), 400
+
         if not validate_email(email):
             return jsonify({'error': 'Неверный формат email'}), 400
-        
-        # Проверка username
+
         if not validate_username(username):
-            return jsonify({'error': 'Имя пользователя должно содержать 3-30 символов: буквы, цифры, _, -'}), 400
-        
-        # Проверка пароля
+            return jsonify({'error': 'Имя пользователя должно содержать 3-30 символов'}), 400
+
         if len(password) < 6:
             return jsonify({'error': 'Пароль должен быть не менее 6 символов'}), 400
-        
-        # Получаем клиент Supabase
-        supabase = supabase_service.get_client()
-        
-        # 1. Регистрируем пользователя в Supabase Auth
-        auth_response = supabase.auth.sign_up({
-            "email": email,
-            "password": password,
-            "options": {
-                "data": {
-                    "username": username,
-                    "display_name": display_name,
-                    "avatar_url": f"https://ui-avatars.com/api/?name={display_name}&background=9146FF&color=fff&size=128"
-                }
-            }
-        })
-        
-        if not auth_response.user:
-            return jsonify({'error': 'Ошибка при создании пользователя'}), 400
-        
-        user_id = auth_response.user.id
-        
-        # 2. Создаем профиль в таблице profiles
-        profile_data = {
-            "id": user_id,
-            "username": username,
-            "display_name": display_name,
-            "email": email,
-            "avatar_url": f"https://ui-avatars.com/api/?name={display_name}&background=9146FF&color=fff&size=128",
-            "bio": "",
-            "location": "",
-            "website": ""
-        }
-        
-        profile_response = supabase.table('profiles').insert(profile_data).execute()
-        
-        if profile_response.error:
-            # Если профиль не создался, удаляем пользователя?
-            return jsonify({'error': 'Ошибка при создании профиля'}), 500
-        
-        # 3. Возвращаем данные пользователя
+
+        # Проверка существования пользователя
+        existing = db_service.execute_query(
+            "SELECT id FROM users WHERE email = %s OR username = %s",
+            [email, username]
+        )
+
+        if existing:
+            return jsonify({'error': 'Пользователь с таким email или именем уже существует'}), 400
+
+        # Хэшируем пароль
+        salt = bcrypt.gensalt()
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), salt)
+
+        user_id = uuid.uuid4()
+        avatar_url = f"https://ui-avatars.com/api/?name={display_name}&background=9146FF&color=fff&size=128"
+
+        # Создаем пользователя
+        db_service.execute_query("""
+            INSERT INTO users (id, email, password_hash, username, display_name, avatar_url)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, [str(user_id), email, password_hash.decode('utf-8'), username, display_name, avatar_url])
+
+        # Создаем профиль
+        db_service.execute_query("""
+            INSERT INTO profiles (id, username, display_name, email, avatar_url)
+            VALUES (%s, %s, %s, %s, %s)
+        """, [str(user_id), username, display_name, email, avatar_url])
+
         return jsonify({
             'message': 'Регистрация успешна',
             'user': {
-                'id': user_id,
+                'id': str(user_id),
                 'email': email,
                 'username': username,
                 'display_name': display_name,
-                'avatar_url': profile_data['avatar_url']
+                'avatar_url': avatar_url
             }
         }), 201
-        
+
     except Exception as e:
-        current_app.logger.error(f'Registration error: {str(e)}')
+        print(f"❌ Registration error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    """
-    Вход пользователя
-    Ожидает: {
-        "email": "user@example.com",
-        "password": "password123"
-    }
-    """
     try:
         data = request.get_json()
-        
-        if not data.get('email') or not data.get('password'):
+        email = data.get('email')
+        password = data.get('password')
+
+        print(f"📥 Login attempt for: {email}")
+
+        if not email or not password:
             return jsonify({'error': 'Email и пароль обязательны'}), 400
-        
-        supabase = supabase_service.get_client()
-        
-        # Вход в систему
-        auth_response = supabase.auth.sign_in_with_password({
-            "email": data['email'],
-            "password": data['password']
-        })
-        
-        if not auth_response.user:
+
+        # Ищем пользователя
+        user = db_service.execute_query(
+            "SELECT * FROM users WHERE email = %s",
+            [email],
+            fetch_one=True
+        )
+
+        if not user:
+            print("❌ User not found")
             return jsonify({'error': 'Неверный email или пароль'}), 401
-        
-        user = auth_response.user
-        session = auth_response.session
-        
-        # Получаем профиль пользователя
-        profile_response = supabase.table('profiles')\
-            .select('*')\
-            .eq('id', user.id)\
-            .execute()
-        
-        profile = profile_response.data[0] if profile_response.data else {}
-        
+
+        # Проверяем пароль
+        if not bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+            print("❌ Wrong password")
+            return jsonify({'error': 'Неверный email или пароль'}), 401
+
+        # Генерируем JWT токен
+        token = jwt.encode({
+            'user_id': str(user['id']),  # Важно: конвертируем в строку!
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+        }, current_app.config['SECRET_KEY'], algorithm='HS256')
+
+        print(f"✅ Login successful, token generated: {token[:50]}...")
+
         return jsonify({
             'message': 'Вход успешен',
-            'session': {
-                'access_token': session.access_token,
-                'refresh_token': session.refresh_token
-            },
+            'access_token': token,
             'user': {
-                'id': user.id,
-                'email': user.email,
-                'username': profile.get('username'),
-                'display_name': profile.get('display_name'),
-                'avatar_url': profile.get('avatar_url')
+                'id': user['id'],
+                'email': user['email'],
+                'username': user['username'],
+                'display_name': user['display_name'],
+                'avatar_url': user['avatar_url']
             }
         }), 200
-        
-    except Exception as e:
-        current_app.logger.error(f'Login error: {str(e)}')
-        return jsonify({'error': str(e)}), 500
 
-@auth_bp.route('/twitch/auth', methods=['POST'])
-def twitch_auth():
-    """
-    Аутентификация через Twitch
-    """
-    try:
-        supabase = supabase_service.get_client()
-        
-        # Получаем URL для авторизации через Twitch
-        auth_response = supabase.auth.sign_in_with_oauth({
-            "provider": "twitch",
-            "options": {
-                "redirect_to": f"{request.host_url}api/auth/twitch/callback"
-            }
-        })
-        
-        return jsonify({
-            'url': auth_response.url
-        }), 200
-        
     except Exception as e:
-        current_app.logger.error(f'Twitch auth error: {str(e)}')
-        return jsonify({'error': str(e)}), 500
-
-@auth_bp.route('/twitch/callback', methods=['GET'])
-def twitch_callback():
-    """
-    Callback после авторизации через Twitch
-    """
-    try:
-        code = request.args.get('code')
-        if not code:
-            return jsonify({'error': 'Code not provided'}), 400
-        
-        # Здесь нужно обработать callback и получить сессию
-        # В Supabase это происходит автоматически, если правильно настроен redirect_to
-        
-        return jsonify({'message': 'Twitch auth successful'}), 200
-        
-    except Exception as e:
-        current_app.logger.error(f'Twitch callback error: {str(e)}')
-        return jsonify({'error': str(e)}), 500
-
-@auth_bp.route('/logout', methods=['POST'])
-def logout():
-    """
-    Выход пользователя
-    """
-    try:
-        supabase = supabase_service.get_client()
-        supabase.auth.sign_out()
-        return jsonify({'message': 'Выход выполнен'}), 200
-        
-    except Exception as e:
+        print(f"❌ Login error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500

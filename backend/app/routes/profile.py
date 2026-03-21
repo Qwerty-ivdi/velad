@@ -1,148 +1,152 @@
-from flask import Blueprint, request, jsonify, g
-from app.services.supabase_service import supabase_service
-from app.utils.decorators import require_auth
+from flask import Blueprint, request, jsonify
+from app.services.db_service import db_service
+import jwt
+from flask import current_app
 
 profile_bp = Blueprint('profile', __name__)
 
-@profile_bp.route('/profile', methods=['GET'])
-@require_auth
-def get_profile():
-    """
-    Получение профиля пользователя
-    """
+
+def get_user_from_token(token):
+    """Получение пользователя из JWT токена"""
     try:
-        user_id = g.user_id
-        supabase = supabase_service.get_client()
-        
-        response = supabase.table('profiles')\
-            .select('*')\
-            .eq('id', user_id)\
-            .execute()
-        
-        if not response.data:
-            return jsonify({'error': 'Профиль не найден'}), 404
-        
-        return jsonify(response.data[0]), 200
-        
+        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+        user_id = payload.get('user_id')
+
+        user = db_service.execute_query(
+            "SELECT id, email, username, display_name, avatar_url, bio, location, website FROM users WHERE id = %s",
+            [user_id],
+            fetch_one=True
+        )
+        return user
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Token decode error: {e}")
+        return None
+
+
+@profile_bp.route('/profile', methods=['GET'])
+def get_profile():
+    """Получение текущего профиля"""
+    auth_header = request.headers.get('Authorization')
+
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Требуется авторизация'}), 401
+
+    token = auth_header.split(' ')[1]
+    user = get_user_from_token(token)
+
+    if not user:
+        return jsonify({'error': 'Неверный токен'}), 401
+
+    return jsonify(user), 200
+
 
 @profile_bp.route('/profile/<user_id>', methods=['GET'])
 def get_profile_by_id(user_id):
-    """
-    Получение профиля по ID
-    """
+    """Получение профиля по ID"""
     try:
-        supabase = supabase_service.get_client()
-        
-        response = supabase.table('profiles')\
-            .select('*')\
-            .eq('id', user_id)\
-            .execute()
-        
-        if not response.data:
+        user = db_service.execute_query(
+            "SELECT id, email, username, display_name, avatar_url, bio, location, website, created_at FROM users WHERE id = %s",
+            [user_id],
+            fetch_one=True
+        )
+
+        if not user:
             return jsonify({'error': 'Профиль не найден'}), 404
-        
-        # Не возвращаем приватные данные
-        profile = response.data[0]
-        return jsonify(profile), 200
-        
+
+        return jsonify(user), 200
+
     except Exception as e:
+        print(f"Error getting profile: {e}")
         return jsonify({'error': str(e)}), 500
 
+
 @profile_bp.route('/profile', methods=['PUT'])
-@require_auth
 def update_profile():
-    """
-    Обновление профиля
-    Ожидает: {
-        "display_name": "New Name",
-        "bio": "About me",
-        "location": "Moscow",
-        "website": "https://example.com"
-    }
-    """
-    try:
-        user_id = g.user_id
-        data = request.get_json()
-        
-        supabase = supabase_service.get_client()
-        
-        # Разрешенные поля для обновления
-        allowed_fields = ['display_name', 'bio', 'location', 'website', 'avatar_url']
-        update_data = {k: v for k, v in data.items() if k in allowed_fields and v is not None}
-        
-        if not update_data:
-            return jsonify({'error': 'Нет данных для обновления'}), 400
-        
-        response = supabase.table('profiles')\
-            .update(update_data)\
-            .eq('id', user_id)\
-            .execute()
-        
-        if response.error:
-            return jsonify({'error': 'Ошибка при обновлении профиля'}), 500
-        
-        return jsonify({
-            'message': 'Профиль обновлен',
-            'profile': response.data[0] if response.data else {}
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    """Обновление профиля"""
+    auth_header = request.headers.get('Authorization')
+
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Требуется авторизация'}), 401
+
+    token = auth_header.split(' ')[1]
+    user = get_user_from_token(token)
+
+    if not user:
+        return jsonify({'error': 'Неверный токен'}), 401
+
+    data = request.get_json()
+
+    # Разрешенные поля для обновления
+    allowed_fields = ['display_name', 'bio', 'location', 'website', 'avatar_url']
+    update_data = {k: v for k, v in data.items() if k in allowed_fields and v is not None}
+
+    if not update_data:
+        return jsonify({'error': 'Нет данных для обновления'}), 400
+
+    # Формируем SQL запрос
+    set_clause = ", ".join([f"{key} = %s" for key in update_data.keys()])
+    values = list(update_data.values())
+    values.append(user['id'])
+
+    query = f"UPDATE users SET {set_clause}, updated_at = NOW() WHERE id = %s RETURNING id, email, username, display_name, avatar_url, bio, location, website"
+
+    updated_user = db_service.execute_query(query, values, fetch_one=True)
+
+    return jsonify({
+        'message': 'Профиль обновлен',
+        'user': updated_user
+    }), 200
+
 
 @profile_bp.route('/profile/username/<username>', methods=['GET'])
 def check_username(username):
-    """
-    Проверка доступности имени пользователя
-    """
+    """Проверка доступности имени пользователя"""
     try:
-        supabase = supabase_service.get_client()
-        
-        response = supabase.table('profiles')\
-            .select('id')\
-            .eq('username', username)\
-            .execute()
-        
+        user = db_service.execute_query(
+            "SELECT id FROM users WHERE username = %s",
+            [username],
+            fetch_one=True
+        )
+
         return jsonify({
-            'available': len(response.data) == 0,
+            'available': user is None,
             'username': username
         }), 200
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @profile_bp.route('/profile/<user_id>/stats', methods=['GET'])
 def get_user_stats(user_id):
-    """
-    Получение статистики пользователя
-    """
+    """Получение статистики пользователя"""
     try:
-        supabase = supabase_service.get_client()
-        
         # Количество подписчиков
-        followers_response = supabase.table('follows')\
-            .select('*', count='exact')\
-            .eq('following_id', user_id)\
-            .execute()
-        
+        followers = db_service.execute_query(
+            "SELECT COUNT(*) as count FROM follows WHERE following_id = %s",
+            [user_id],
+            fetch_one=True
+        )
+
         # Количество подписок
-        following_response = supabase.table('follows')\
-            .select('*', count='exact')\
-            .eq('follower_id', user_id)\
-            .execute()
-        
+        following = db_service.execute_query(
+            "SELECT COUNT(*) as count FROM follows WHERE follower_id = %s",
+            [user_id],
+            fetch_one=True
+        )
+
         # Количество постов
-        posts_response = supabase.table('posts')\
-            .select('*', count='exact')\
-            .eq('user_id', user_id)\
-            .execute()
-        
+        posts = db_service.execute_query(
+            "SELECT COUNT(*) as count FROM posts WHERE user_id = %s",
+            [user_id],
+            fetch_one=True
+        )
+
         return jsonify({
-            'followers_count': followers_response.count or 0,
-            'following_count': following_response.count or 0,
-            'posts_count': posts_response.count or 0
+            'followers_count': followers['count'] if followers else 0,
+            'following_count': following['count'] if following else 0,
+            'posts_count': posts['count'] if posts else 0
         }), 200
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500

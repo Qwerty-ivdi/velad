@@ -1,30 +1,34 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
+import { api } from '../../lib/supabase'
 
-const AuthCallback = () => {
+const AuthCallback = ({ setUser }) => {
   const navigate = useNavigate()
   const [error, setError] = useState(null)
 
   useEffect(() => {
     const handleCallback = async () => {
-      const { data, error } = await supabase.auth.getSession()
+      // Получаем параметры из URL
+      const params = new URLSearchParams(window.location.search)
+      const access_token = params.get('access_token')
       
-      if (error) {
-        setError(error.message)
-        setTimeout(() => navigate('/login'), 3000)
-        return
-      }
-
-      if (data.session) {
-        // Ждем создания профиля через триггер
-        await new Promise(resolve => setTimeout(resolve, 1500))
-        navigate('/profile')
+      if (access_token) {
+        api.setToken(access_token)
+        try {
+          const profile = await api.getProfile(access_token)
+          api.setUser(profile)
+          if (setUser) setUser(profile)
+          navigate('/profile')
+        } catch (err) {
+          setError(err.message)
+        }
+      } else {
+        setError('Не удалось получить токен авторизации')
       }
     }
 
     handleCallback()
-  }, [navigate])
+  }, [navigate, setUser])
 
   if (error) {
     return (

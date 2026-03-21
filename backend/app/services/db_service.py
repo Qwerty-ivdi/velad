@@ -1,0 +1,38 @@
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from flask import current_app
+
+
+class DatabaseService:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def get_connection(self):
+        """Получение подключения к БД"""
+        return psycopg2.connect(
+            current_app.config['DATABASE_URL'],
+            cursor_factory=RealDictCursor,
+            sslmode='require'
+        )
+
+    def execute_query(self, query, params=None, fetch_one=False):
+        """Выполнение SQL запроса"""
+        conn = self.get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(query, params)
+                if query.strip().upper().startswith('SELECT'):
+                    if fetch_one:
+                        return cur.fetchone()
+                    return cur.fetchall()
+                conn.commit()
+                return cur.rowcount
+        finally:
+            conn.close()
+
+
+db_service = DatabaseService()

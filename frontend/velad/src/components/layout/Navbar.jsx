@@ -1,17 +1,29 @@
 import React, { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
-import { FaGamepad, FaHome, FaUser, FaSignOutAlt, FaBars, FaTimes, FaChevronDown, FaStream, FaUsers } from 'react-icons/fa'
+import { api } from '../../lib/supabase'
+import { 
+  FaGamepad, 
+  FaHome, 
+  FaUser, 
+  FaSignOutAlt, 
+  FaBars, 
+  FaTimes, 
+  FaChevronDown,
+  FaStream,      // ← добавляем
+  FaUsers        // ← добавляем
+} from 'react-icons/fa'
 import '../../styles/navbar.css'
 
-const Navbar = ({ user }) => {
+const Navbar = ({ user, setUser }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    api.removeToken()
+    api.removeUser()
+    if (setUser) setUser(null)
     navigate('/login')
     setIsDropdownOpen(false)
   }
@@ -72,12 +84,12 @@ const Navbar = ({ user }) => {
           {user ? (
             <div className="navbar-user" onClick={toggleDropdown}>
               <img
-                src={user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${user.email}&background=9146FF&color=fff&size=40`}
+                src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.display_name || user.username}&background=9146FF&color=fff&size=40`}
                 alt="Avatar"
                 className="navbar-avatar"
               />
               <span className="navbar-username">
-                {user.user_metadata?.display_name || user.email?.split('@')[0]}
+                {user.display_name || user.username}
               </span>
               <FaChevronDown className={`navbar-chevron ${isDropdownOpen ? 'open' : ''}`} />
               
