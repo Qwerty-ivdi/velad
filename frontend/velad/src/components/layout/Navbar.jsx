@@ -13,6 +13,7 @@ import {
   FaUsers        // ← добавляем
 } from 'react-icons/fa'
 import '../../styles/navbar.css'
+import { FaSearch } from 'react-icons/fa'
 
 const Navbar = ({ user, setUser }) => {
   const navigate = useNavigate()
@@ -72,11 +73,11 @@ const Navbar = ({ user, setUser }) => {
               <FaStream /> Стримы
             </Link>
             <Link 
-              to="/community" 
-              className={`navbar-link ${isActive('/community') ? 'active' : ''}`}
+              to="/search" 
+              className={`navbar-link ${isActive('/search') ? 'active' : ''}`}
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              <FaUsers /> Сообщество
+              <FaSearch /> Поиск
             </Link>
           </div>
 

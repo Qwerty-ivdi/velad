@@ -7,6 +7,7 @@ import ProfilePage from './components/profile/ProfilePage'
 import AuthCallback from './components/auth/AuthCallback'
 import Navbar from './components/layout/Navbar'
 import LoadingSpinner from './components/common/LoadingSpinner'
+import SearchPage from './components/search/SearchPage'
 
 function App() {
   const [user, setUser] = useState(null)
@@ -46,6 +47,9 @@ function App() {
             user ? <ProfilePage user={user} setUser={setUser} /> : <Navigate to="/login" />
           } />
           <Route path="/profile/:userId" element={<ProfilePage user={user} />} />
+          <Route path="/search" element={
+            user ? <SearchPage token={api.getToken()} /> : <Navigate to="/login" />
+          } />
         </Routes>
       </div>
     </Router>

@@ -1,3 +1,4 @@
+# app/services/db_service.py
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import current_app
@@ -19,18 +20,34 @@ class DatabaseService:
             sslmode='require'
         )
 
-    def execute_query(self, query, params=None, fetch_one=False):
-        """Выполнение SQL запроса"""
+    def execute_query(self, query, params=None, fetch_one=False, fetch_all=False, return_id=False):
+        """
+        Выполнение SQL запроса
+        - fetch_one: вернуть одну строку
+        - fetch_all: вернуть все строки
+        - return_id: вернуть ID вставленной записи (для INSERT с RETURNING)
+        """
         conn = self.get_connection()
         try:
             with conn.cursor() as cur:
                 cur.execute(query, params)
-                if query.strip().upper().startswith('SELECT'):
-                    if fetch_one:
-                        return cur.fetchone()
-                    return cur.fetchall()
-                conn.commit()
-                return cur.rowcount
+
+                if return_id:
+                    # Возвращаем ID для INSERT с RETURNING
+                    result = cur.fetchone()
+                    conn.commit()
+                    return result
+                elif fetch_one:
+                    result = cur.fetchone()
+                    conn.commit()
+                    return result
+                elif fetch_all:
+                    result = cur.fetchall()
+                    conn.commit()
+                    return result
+                else:
+                    conn.commit()
+                    return cur.rowcount
         finally:
             conn.close()
 

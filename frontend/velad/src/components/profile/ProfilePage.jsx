@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { api } from '../../lib/supabase'  // ← используем api вместо supabase
+import { useNavigate, useParams } from 'react-router-dom'
+import { api } from '../../lib/supabase'
+import Post from '../posts/Post'
+import CreatePost from '../posts/CreatePost'
 import { FaTwitch, FaCalendar, FaMapMarkerAlt, FaLink, FaEdit } from 'react-icons/fa'
 import '../../styles/profile.css'
 
 const ProfilePage = ({ user: currentUser, setUser }) => {
   const navigate = useNavigate()
+  const { userId } = useParams()
   const [profile, setProfile] = useState(null)
+  const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingPosts, setLoadingPosts] = useState(false)
   const [error, setError] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
+  const [activeTab, setActiveTab] = useState('posts')
   const [editForm, setEditForm] = useState({
     display_name: '',
     bio: '',
@@ -17,27 +23,44 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
     website: ''
   })
 
-  useEffect(() => {
-    if (!currentUser) {
-      navigate('/login')
-      return
-    }
+  // Определяем, свой ли это профиль
+  const profileId = userId || currentUser?.id
+  const isOwnProfile = currentUser && profileId === currentUser.id
+
+ useEffect(() => {
+  if (!currentUser && !userId) {
+    navigate('/login')
+    return
+  }
+  if (profileId) {
     fetchProfile()
-  }, [currentUser, navigate])
+  }
+}, [profileId, currentUser, navigate]) 
+
+useEffect(() => {
+  if (profile) {
+    fetchPosts()
+  }
+}, [profile])
 
   const fetchProfile = async () => {
     try {
       setLoading(true)
-      const token = api.getToken()
+      let profileData
       
-      if (!token) {
-        throw new Error('Нет токена авторизации')
+      if (isOwnProfile) {
+        // Свой профиль - используем токен
+        const token = api.getToken()
+        if (!token) {
+          throw new Error('Нет токена авторизации')
+        }
+        profileData = await api.getProfile(token)
+      } else {
+        // Чужой профиль - запрос по ID
+        profileData = await api.getUserById(profileId)
       }
       
-      // Используем API вместо supabase
-      const profileData = await api.getProfile(token)
       setProfile(profileData)
-      
       setEditForm({
         display_name: profileData.display_name || '',
         bio: profileData.bio || '',
@@ -49,6 +72,31 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
       console.error('Error fetching profile:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handlePostUpdate = (updatedPost) => {
+  setPosts(prevPosts => 
+    prevPosts.map(post => 
+      post.id === updatedPost.id ? updatedPost : post
+    )
+  )
+}
+
+const handlePostDelete = (postId) => {
+  setPosts(prevPosts => prevPosts.filter(post => post.id !== postId))
+}
+
+  const fetchPosts = async () => {
+    setLoadingPosts(true)
+    try {
+      const token = api.getToken()
+      const userPosts = await api.getUserPosts(profile.id, token)
+      setPosts(userPosts)
+    } catch (err) {
+      console.error('Error fetching posts:', err)
+    } finally {
+      setLoadingPosts(false)
     }
   }
 
@@ -66,7 +114,7 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
       })
       
       setProfile(updated.user)
-      if (setUser) {
+      if (setUser && isOwnProfile) {
         setUser({ ...currentUser, ...updated.user })
       }
       setIsEditing(false)
@@ -76,6 +124,22 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
       setLoading(false)
     }
   }
+
+  const handlePostCreated = (newPost) => {
+  // Убеждаемся, что новый пост содержит все нужные поля
+  const completePost = {
+    ...newPost,
+    username: profile.username,
+    display_name: profile.display_name,
+    avatar_url: profile.avatar_url,
+    likes_count: 0,
+    comments_count: 0,
+    is_liked: false
+  }
+  
+  setPosts([completePost, ...posts])
+  
+}
 
   const formatDate = (date) => {
     if (!date) return 'недавно'
@@ -122,11 +186,14 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
 
         <div className="profile-info">
           <div className="profile-avatar">
-            <img
-              src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.display_name}&background=9146FF&color=fff&size=128`}
-              alt={profile.display_name}
-            />
-          </div>
+  <img
+    src={profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.display_name || profile.username)}&background=9146FF&color=fff&size=128&bold=true`}
+    alt={profile.display_name}
+    onError={(e) => {
+      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.display_name || profile.username)}&background=9146FF&color=fff&size=128&bold=true`
+    }}
+  />
+</div>
 
           <div className="profile-details">
             <div className="profile-name">
@@ -134,9 +201,11 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
               <p>@{profile.username}</p>
             </div>
 
-            <button onClick={() => setIsEditing(true)} className="btn-edit">
-              <FaEdit /> Редактировать
-            </button>
+            {isOwnProfile && (
+              <button onClick={() => setIsEditing(true)} className="btn-edit">
+                <FaEdit /> Редактировать
+              </button>
+            )}
           </div>
 
           <div className="profile-stats">
@@ -149,7 +218,7 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
               <span className="stat-label">подписок</span>
             </div>
             <div className="stat-item">
-              <span className="stat-value">{profile.posts_count || 0}</span>
+              <span className="stat-value">{posts.length}</span>
               <span className="stat-label">постов</span>
             </div>
           </div>
@@ -161,6 +230,16 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
           )}
 
           <div className="profile-meta">
+            {profile.twitch_login && (
+              <a
+                href={`https://twitch.tv/${profile.twitch_login}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="meta-item"
+              >
+                <FaTwitch /> {profile.twitch_login}
+              </a>
+            )}
             {profile.location && (
               <span className="meta-item">
                 <FaMapMarkerAlt /> {profile.location}
@@ -181,6 +260,76 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Вкладки */}
+      <div className="profile-tabs">
+          <button className={`tab-button ${activeTab === 'posts' ? 'active' : ''}`} onClick={() => setActiveTab('posts')}>
+            Посты ({posts.length})
+          </button>
+          <button className={`tab-button ${activeTab === 'followers' ? 'active' : ''}`} onClick={() => setActiveTab('followers')}>
+            Подписчики ({profile.followers_count || 0})
+          </button>
+          <button className={`tab-button ${activeTab === 'following' ? 'active' : ''}`} onClick={() => setActiveTab('following')}>
+            Подписки ({profile.following_count || 0})
+          </button>
+        
+        <button 
+          className={`tab-button ${activeTab === 'about' ? 'active' : ''}`}
+          onClick={() => setActiveTab('about')}
+        >
+          О себе
+        </button>
+      </div>
+
+      <div className="tab-content">
+        {activeTab === 'posts' && (
+          <div className="posts-list">
+            {/* Форма создания поста (только для своего профиля) */}
+            {isOwnProfile && (
+              <CreatePost 
+                token={api.getToken()} 
+                onPostCreated={handlePostCreated}
+              />
+            )}
+            
+            {/* Список постов */}
+            {loadingPosts ? (
+              <div className="loading">Загрузка постов...</div>
+            ) : posts.length === 0 ? (
+              <div className="empty-posts">
+                <p>У пользователя пока нет постов</p>
+                {isOwnProfile && (
+                  <p>Напишите что-нибудь, чтобы поделиться с сообществом!</p>
+                )}
+              </div>
+            ) : (
+              posts.map(post => (
+                 <Post 
+                  key={post.id} 
+                  post={post} 
+                  token={api.getToken()}
+                  isOwnPost={isOwnProfile}
+                  onPostUpdate={handlePostUpdate}
+                  onPostDelete={handlePostDelete}
+                />
+              ))
+            )}
+          </div>
+        )}
+        
+        {activeTab === 'about' && (
+          <div className="about-content">
+            <p><strong>О себе:</strong> {profile.bio || 'Не заполнено'}</p>
+            <p><strong>Местоположение:</strong> {profile.location || 'Не указано'}</p>
+            <p><strong>Сайт:</strong> {profile.website ? (
+              <a href={profile.website} target="_blank" rel="noopener noreferrer">
+                {profile.website}
+              </a>
+            ) : 'Не указан'}</p>
+            <p><strong>Присоединился:</strong> {formatDate(profile.created_at)}</p>
+          </div>
+        )}
       </div>
 
       {/* Модальное окно редактирования */}
@@ -227,7 +376,7 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Ссылка на twitch канал</label>
+                  <label className="form-label">Веб-сайт</label>
                   <input
                     type="url"
                     value={editForm.website}
