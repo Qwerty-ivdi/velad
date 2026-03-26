@@ -56,6 +56,50 @@ export const api = {
     return result
   },
 
+  // Комментарии
+async getComments(token, postId, limit = 20, offset = 0) {
+  const response = await fetch(`${API_URL}/posts/${postId}/comments?limit=${limit}&offset=${offset}`, {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+  })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error || 'Ошибка получения комментариев')
+  return result
+},
+
+async createComment(token, postId, content, parentId = null) {
+  const response = await fetch(`${API_URL}/posts/${postId}/comments`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ content, parent_id: parentId })
+  })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error || 'Ошибка создания комментария')
+  return result
+},
+
+async deleteComment(token, commentId) {
+  const response = await fetch(`${API_URL}/comments/${commentId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error || 'Ошибка удаления комментария')
+  return result
+},
+
+async likeComment(token, commentId) {
+  const response = await fetch(`${API_URL}/comments/${commentId}/like`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error || 'Ошибка')
+  return result
+},
+
   // Посты
 async updatePost(token, postId, content) {
   const response = await fetch(`${API_URL}/posts/${postId}`, {
@@ -200,11 +244,14 @@ async getFollowing(token, userId, limit = 20, offset = 0) {
 async likePost(token, postId) {
   const response = await fetch(`${API_URL}/posts/${postId}/like`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` }
+    headers: { 
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
   })
   const result = await response.json()
   if (!response.ok) throw new Error(result.error || 'Ошибка')
-  return result 
+  return result  
 },
 
 async getProfileWithFollowStatus(token, userId) {

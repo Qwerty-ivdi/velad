@@ -774,3 +774,406 @@
   border-radius: 1rem;
   font-size: 0.8rem;
 }
+
+/* Комментарии */
+/* Основной контейнер */
+.comment-section {
+  margin-top: 1rem;
+}
+
+/* Кнопка показа/скрытия */
+.show-comments-btn {
+  background: none;
+  border: none;
+  color: #8b5cf6;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+  transition: all 0.2s;
+}
+
+.show-comments-btn:hover {
+  color: #a78bfa;
+  text-decoration: underline;
+}
+
+/* Контейнер всех комментариев */
+.comments-container {
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+}
+
+/* Форма создания комментария */
+.comment-form {
+  margin-bottom: 1.5rem;
+}
+
+.comment-form textarea {
+  width: 100%;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  color: white;
+  font-size: 0.9rem;
+  resize: vertical;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.comment-form textarea:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+.comment-form button {
+  margin-top: 0.5rem;
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.comment-form button:hover:not(:disabled) {
+  background: #7c3aed;
+  transform: translateY(-1px);
+}
+
+/* Список комментариев */
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Отдельный комментарий - базовая карточка */
+.comment-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: transparent;
+  border-radius: 0;
+  transition: background 0.2s;
+}
+
+.comment-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Аватар */
+.comment-avatar {
+  flex-shrink: 0;
+}
+
+.comment-avatar img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Контент комментария */
+.comment-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Шапка комментария */
+.comment-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.comment-author {
+  font-weight: 600;
+  color: white;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.comment-author:hover {
+  color: #8b5cf6;
+}
+
+.comment-date {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+/* Текст комментария */
+.comment-text {
+  color: #e5e7eb;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+  word-wrap: break-word;
+}
+
+/* Действия с комментарием */
+.comment-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.comment-like-btn,
+.comment-reply-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.25rem 0;
+  transition: all 0.2s;
+}
+
+.comment-like-btn:hover,
+.comment-reply-btn:hover {
+  color: #8b5cf6;
+}
+
+.comment-like-btn.liked {
+  color: #ef4444;
+}
+
+/* ============================================
+   УРОВНИ ВЛОЖЕННОСТИ (ОТСТУПЫ)
+   ============================================ */
+
+/* Корневой комментарий */
+.comment-item.level-0 {
+  margin-left: 0;
+  border-left: none;
+}
+
+/* Ответ первого уровня */
+.comment-item.level-1 {
+  margin-left: 48px;
+  border-left: 2px solid #374151;
+  border-radius: 0;
+  padding-left: 0.75rem;
+}
+
+/* Ответ второго уровня */
+.comment-item.level-2 {
+  margin-left: 96px;
+  border-left: 2px solid #4b5563;
+  padding-left: 0.75rem;
+}
+
+/* Ответ третьего уровня */
+.comment-item.level-3 {
+  margin-left: 144px;
+  border-left: 2px solid #6b7280;
+  padding-left: 0.75rem;
+}
+
+/* ============================================
+   ФОРМА ОТВЕТА
+   ============================================ */
+
+.reply-form {
+  margin-top: 0.75rem;
+  margin-left: 48px;
+  padding: 0.75rem;
+  background: #0a0a14;
+  border-radius: 0.75rem;
+}
+
+.reply-form textarea {
+  width: 100%;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 0.5rem;
+  padding: 0.6rem;
+  color: white;
+  font-size: 0.85rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.reply-form textarea:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+
+.reply-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+  justify-content: flex-end;
+}
+
+.cancel-reply-btn,
+.submit-reply-btn {
+  padding: 0.35rem 0.9rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-reply-btn {
+  background: #374151;
+  color: #9ca3af;
+  border: none;
+}
+
+.cancel-reply-btn:hover {
+  background: #4b5563;
+  color: white;
+}
+
+.submit-reply-btn {
+  background: #8b5cf6;
+  color: white;
+  border: none;
+}
+
+.submit-reply-btn:hover:not(:disabled) {
+  background: #7c3aed;
+}
+
+.submit-reply-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   КОНТЕЙНЕР ДЛЯ ВЛОЖЕННЫХ ОТВЕТОВ
+   ============================================ */
+
+.replies-container {
+  margin-top: 0;
+  padding-left: 0;
+}
+
+/* ============================================
+   СОСТОЯНИЯ ЗАГРУЗКИ И ПУСТЫЕ СОСТОЯНИЯ
+   ============================================ */
+
+.loading-comments,
+.no-comments {
+  text-align: center;
+  padding: 1.5rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.loading-comments {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.loading-comments::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border: 2px solid #374151;
+  border-top-color: #8b5cf6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================
+   АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ
+   ============================================ */
+
+@media (max-width: 640px) {
+  .comment-item.level-1 {
+    margin-left: 32px;
+  }
+  
+  .comment-item.level-2 {
+    margin-left: 64px;
+  }
+  
+  .comment-item.level-3 {
+    margin-left: 96px;
+  }
+  
+  .reply-form {
+    margin-left: 32px;
+  }
+  
+  .comment-avatar img {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .comment-author {
+    font-size: 0.85rem;
+  }
+  
+  .comment-text {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .comment-item.level-1 {
+    margin-left: 24px;
+  }
+  
+  .comment-item.level-2 {
+    margin-left: 48px;
+  }
+  
+  .comment-item.level-3 {
+    margin-left: 72px;
+  }
+  
+  .reply-form {
+    margin-left: 24px;
+  }
+}
+
+/* ============================================
+   АНИМАЦИИ
+   ============================================ */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.comment-item {
+  animation: fadeInUp 0.2s ease-out;
+}
+
+/* ============================================
+   СТИЛИ ДЛЯ СЧЕТЧИКОВ В ПОСТЕ
+   ============================================ */
+
+.post-stats .comment-btn {
+  position: relative;
+}
+
+.post-stats .comment-btn.has-comments {
+  color: #8b5cf6;
+}

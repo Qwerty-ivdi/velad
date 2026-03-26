@@ -157,12 +157,14 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
   }
 
   const handleLikeUpdate = (postId, isLiked, newLikesCount) => {
-    setPosts(prev => prev.map(post => 
+  setPosts(prevPosts => 
+    prevPosts.map(post => 
       post.id === postId 
         ? { ...post, is_liked: isLiked, likes_count: newLikesCount }
         : post
-    ))
-  }
+    )
+  )
+}
 
   const handlePostCreated = (newPost) => {
     const completePost = {
@@ -401,7 +403,7 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
                   isOwnPost={isOwnProfile}
                   onPostUpdate={handlePostUpdate}
                   onPostDelete={handlePostDelete}
-                  onLikeUpdate={handleLikeUpdate}
+                  onLikeUpdate={handleLikeUpdate} 
                 />
               ))
             )}

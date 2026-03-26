@@ -1,15 +1,23 @@
 import React, { useState } from 'react'
 import { api } from '../../lib/supabase'
+import CommentSection from './CommentSection'
 import { FaHeart, FaRegHeart, FaComment, FaShare, FaEdit, FaTrash, FaTimes, FaCheck } from 'react-icons/fa'
 import { Link } from 'react-router-dom'
 
 const Post = ({ post, token, isOwnPost = false, onPostUpdate, onPostDelete, onLikeUpdate }) => {
+  // Инициализируем состояние из пропсов
   const [liked, setLiked] = useState(post.is_liked || false)
   const [likesCount, setLikesCount] = useState(post.likes_count || 0)
   const [loading, setLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(post.content || '')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Обновляем состояние при изменении пропсов (например, после обновления страницы)
+  React.useEffect(() => {
+    setLiked(post.is_liked || false)
+    setLikesCount(post.likes_count || 0)
+  }, [post.is_liked, post.likes_count])
 
   const formatDate = (date) => {
     const now = new Date()
@@ -28,12 +36,17 @@ const Post = ({ post, token, isOwnPost = false, onPostUpdate, onPostDelete, onLi
     setLoading(true)
     try {
       const result = await api.likePost(token, post.id)
-      setLiked(result.action === 'liked')
-      setLikesCount(result.likes_count)
       
-      // Уведомляем родителя об изменении лайка
+      // Обновляем локальное состояние
+      const newLiked = result.action === 'liked'
+      const newLikesCount = result.likes_count
+      
+      setLiked(newLiked)
+      setLikesCount(newLikesCount)
+      
+      // Уведомляем родителя об изменении
       if (onLikeUpdate) {
-        onLikeUpdate(post.id, result.action === 'liked', result.likes_count)
+        onLikeUpdate(post.id, newLiked, newLikesCount)
       }
     } catch (err) {
       console.error('Like error:', err)
@@ -191,6 +204,15 @@ const Post = ({ post, token, isOwnPost = false, onPostUpdate, onPostDelete, onLi
               <FaShare />
             </button>
           </div>
+          <CommentSection 
+            postId={post.id} 
+            token={token} 
+            onCommentCountChange={(newCount) => {
+              if (onPostUpdate) {
+                onPostUpdate({ ...post, comments_count: newCount })
+              }
+            }}
+          />
         </>
       )}
       
