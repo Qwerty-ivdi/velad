@@ -205,7 +205,7 @@ const CommentSection = ({ postId, token, currentUserId, onCommentCountChange }) 
         className="show-comments-btn"
         onClick={() => setExpanded(!expanded)}
       >
-        {expanded ? 'Скрыть комментарии' : `Показать комментарии (${totalComments})`}
+        {expanded ? 'Скрыть комментарии' : `Показать комментарии`}
       </button>
 
       {expanded && (

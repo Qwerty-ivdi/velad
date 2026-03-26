@@ -359,19 +359,19 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
           className={`tab-button ${activeTab === 'posts' ? 'active' : ''}`}
           onClick={() => setActiveTab('posts')}
         >
-          Посты ({posts.length})
+          Посты
         </button>
         <button 
           className={`tab-button ${activeTab === 'followers' ? 'active' : ''}`}
           onClick={() => setActiveTab('followers')}
         >
-          Подписчики ({followersCount})
+          Подписчики
         </button>
         <button 
           className={`tab-button ${activeTab === 'following' ? 'active' : ''}`}
           onClick={() => setActiveTab('following')}
         >
-          Подписки ({followingCount})
+          Подписки
         </button>
       </div>
       
@@ -507,7 +507,7 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Веб-сайт</label>
+                  <label className="form-label">Ссылка на Twitch канал</label>
                   <input
                     type="url"
                     value={editForm.website}

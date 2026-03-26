@@ -205,6 +205,10 @@
   font-size: 1.5rem;
 }
 
+.form-label{
+  color: white;
+}
+
 .modal-close {
   background: none;
   border: none;
