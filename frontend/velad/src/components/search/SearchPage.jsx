@@ -26,22 +26,38 @@ const SearchPage = ({ token }) => {
   }
 
   const handleFollow = async (userId, isFollowing) => {
-    try {
-      if (isFollowing) {
-        await api.unfollowUser(token, userId)
-        setUsers(prev => prev.map(u => 
-          u.id === userId ? { ...u, is_following: false } : u
-        ))
-      } else {
-        await api.followUser(token, userId)
-        setUsers(prev => prev.map(u => 
-          u.id === userId ? { ...u, is_following: true } : u
-        ))
-      }
-    } catch (err) {
-      console.error('Follow error:', err)
+  try {
+    if (isFollowing) {
+      await api.unfollowUser(token, userId)
+      setUsers(prev => prev.map(u => {
+        if (u.id === userId) {
+          return { 
+            ...u, 
+            is_following: false,
+            followers_count: (u.followers_count || 0) - 1
+          }
+        }
+        return u
+      }))
+    } else {
+      await api.followUser(token, userId)
+      setUsers(prev => prev.map(u => {
+        if (u.id === userId) {
+          return { 
+            ...u, 
+            is_following: true,
+            followers_count: (u.followers_count || 0) + 1
+          }
+        }
+        return u
+      }))
     }
+  } catch (err) {
+    console.error('Follow error:', err)
   }
+}
+
+  
 
   return (
     <div className="search-container">

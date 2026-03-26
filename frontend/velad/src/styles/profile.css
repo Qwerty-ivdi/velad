@@ -668,3 +668,109 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.btn-follow {
+  padding: 0.5rem 1.5rem;
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  border-radius: 2rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-follow:hover {
+  background: #7c3aed;
+  transform: translateY(-1px);
+}
+
+.btn-follow.following {
+  background: #374151;
+}
+
+.btn-follow.following:hover {
+  background: #ef4444;
+}
+
+/* Стили для списка пользователей */
+.user-list-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #111827;
+  border-radius: 0.75rem;
+  margin-bottom: 0.75rem;
+  transition: all 0.2s;
+}
+
+.user-list-item:hover {
+  background: #1f2937;
+  transform: translateX(4px);
+}
+
+.user-list-avatar img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-list-info {
+  flex: 1;
+}
+
+.user-list-info h4 {
+  color: white;
+  margin: 0;
+  font-size: 1rem;
+}
+
+.user-list-info h4:hover {
+  color: #8b5cf6;
+}
+
+.user-list-info .username {
+  color: #9ca3af;
+  font-size: 0.8rem;
+  margin: 0.25rem 0;
+}
+
+.user-list-info .bio {
+  color: #d1d5db;
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+}
+
+.user-list-info .followers-count {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.followers-list,
+.following-list {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.empty-list {
+  text-align: center;
+  padding: 2rem;
+  color: #9ca3af;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #9ca3af;
+}
+
+.self-badge {
+  background: #374151;
+  color: #9ca3af;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+}

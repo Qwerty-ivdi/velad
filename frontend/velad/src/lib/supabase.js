@@ -185,7 +185,7 @@ async getFollowers(token, userId, limit = 20, offset = 0) {
   })
   const result = await response.json()
   if (!response.ok) throw new Error(result.error || 'Ошибка')
-  return result.followers
+  return result.followers || []
 },
 
 async getFollowing(token, userId, limit = 20, offset = 0) {
@@ -194,7 +194,26 @@ async getFollowing(token, userId, limit = 20, offset = 0) {
   })
   const result = await response.json()
   if (!response.ok) throw new Error(result.error || 'Ошибка')
-  return result.following
+  return result.following || []
+},
+
+async likePost(token, postId) {
+  const response = await fetch(`${API_URL}/posts/${postId}/like`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error || 'Ошибка')
+  return result 
+},
+
+async getProfileWithFollowStatus(token, userId) {
+  const response = await fetch(`${API_URL}/profile/${userId}`, {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+  })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error || 'Ошибка получения профиля')
+  return result
 },
 
   // Хранение токена

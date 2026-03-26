@@ -3,7 +3,7 @@ import { api } from '../../lib/supabase'
 import { FaHeart, FaRegHeart, FaComment, FaShare, FaEdit, FaTrash, FaTimes, FaCheck } from 'react-icons/fa'
 import { Link } from 'react-router-dom'
 
-const Post = ({ post, token, isOwnPost = false, onPostUpdate, onPostDelete }) => {
+const Post = ({ post, token, isOwnPost = false, onPostUpdate, onPostDelete, onLikeUpdate }) => {
   const [liked, setLiked] = useState(post.is_liked || false)
   const [likesCount, setLikesCount] = useState(post.likes_count || 0)
   const [loading, setLoading] = useState(false)
@@ -30,6 +30,11 @@ const Post = ({ post, token, isOwnPost = false, onPostUpdate, onPostDelete }) =>
       const result = await api.likePost(token, post.id)
       setLiked(result.action === 'liked')
       setLikesCount(result.likes_count)
+      
+      // Уведомляем родителя об изменении лайка
+      if (onLikeUpdate) {
+        onLikeUpdate(post.id, result.action === 'liked', result.likes_count)
+      }
     } catch (err) {
       console.error('Like error:', err)
     } finally {
@@ -38,28 +43,27 @@ const Post = ({ post, token, isOwnPost = false, onPostUpdate, onPostDelete }) =>
   }
 
   const handleEdit = async () => {
-  if (!editContent.trim()) return
-  
-  setLoading(true)
-  try {
-    const updated = await api.updatePost(token, post.id, editContent.trim())
+    if (!editContent.trim()) return
     
-    // Обновляем пост с сохранением всех данных
-    const updatedPost = {
-      ...post,  // Сохраняем все существующие данные
-      content: updated.content,
-      updated_at: updated.updated_at
+    setLoading(true)
+    try {
+      const updated = await api.updatePost(token, post.id, editContent.trim())
+      
+      const updatedPost = {
+        ...post,
+        content: updated.content,
+        updated_at: updated.updated_at
+      }
+      
+      setIsEditing(false)
+      if (onPostUpdate) onPostUpdate(updatedPost)
+    } catch (err) {
+      console.error('Edit error:', err)
+      alert(err.message)
+    } finally {
+      setLoading(false)
     }
-    
-    setIsEditing(false)
-    if (onPostUpdate) onPostUpdate(updatedPost)
-  } catch (err) {
-    console.error('Edit error:', err)
-    alert(err.message)
-  } finally {
-    setLoading(false)
   }
-}
 
   const handleDelete = async () => {
     setLoading(true)
@@ -94,7 +98,6 @@ const Post = ({ post, token, isOwnPost = false, onPostUpdate, onPostDelete }) =>
           <span>@{post.username} • {formatDate(post.created_at)}</span>
         </div>
         
-        {/* Кнопки редактирования/удаления (только для своих постов) */}
         {isOwnPost && (
           <div className="post-actions">
             {!isEditing && (
@@ -121,7 +124,6 @@ const Post = ({ post, token, isOwnPost = false, onPostUpdate, onPostDelete }) =>
         )}
       </div>
       
-      {/* Режим редактирования */}
       {isEditing ? (
         <div className="post-edit-mode">
           <textarea
@@ -192,7 +194,6 @@ const Post = ({ post, token, isOwnPost = false, onPostUpdate, onPostDelete }) =>
         </>
       )}
       
-      {/* Модальное окно подтверждения удаления */}
       {showDeleteConfirm && (
         <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
           <div className="modal-content confirm-modal" onClick={(e) => e.stopPropagation()}>

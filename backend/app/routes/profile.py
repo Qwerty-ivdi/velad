@@ -273,47 +273,75 @@ def unfollow_user(user_id):
 
 @profile_bp.route('/users/<user_id>/followers', methods=['GET'])
 def get_followers(user_id):
-    """Получить список подписчиков пользователя"""
+    """Получить список подписчиков пользователя с информацией о подписке текущего пользователя"""
     try:
         limit = request.args.get('limit', 20, type=int)
         offset = request.args.get('offset', 0, type=int)
 
+        # Получаем текущего пользователя из токена
+        auth_header = request.headers.get('Authorization')
+        current_user_id = None
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            current_user = get_user_from_token(token)
+            if current_user:
+                current_user_id = current_user['id']
+
         followers = db_service.execute_query("""
             SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio,
                    f.created_at as followed_at,
-                   (SELECT COUNT(*) FROM follows WHERE following_id = u.id) as followers_count
+                   (SELECT COUNT(*) FROM follows WHERE following_id = u.id) as followers_count,
+                   CASE WHEN %s IS NOT NULL THEN
+                       (SELECT COUNT(*) > 0 FROM follows 
+                        WHERE follower_id = %s AND following_id = u.id)
+                   ELSE false END as is_following
             FROM follows f
             JOIN users u ON f.follower_id = u.id
             WHERE f.following_id = %s
             ORDER BY f.created_at DESC
             LIMIT %s OFFSET %s
-        """, [user_id, limit, offset], fetch_all=True)
+        """, [current_user_id, current_user_id, user_id, limit, offset], fetch_all=True)
 
         return jsonify({'followers': followers or []}), 200
 
     except Exception as e:
+        print(f"❌ Error getting followers: {e}")
         return jsonify({'error': str(e)}), 500
 
 
 @profile_bp.route('/users/<user_id>/following', methods=['GET'])
 def get_following(user_id):
-    """Получить список подписок пользователя"""
+    """Получить список подписок пользователя с информацией о подписке текущего пользователя"""
     try:
         limit = request.args.get('limit', 20, type=int)
         offset = request.args.get('offset', 0, type=int)
 
+        # Получаем текущего пользователя из токена
+        auth_header = request.headers.get('Authorization')
+        current_user_id = None
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            current_user = get_user_from_token(token)
+            if current_user:
+                current_user_id = current_user['id']
+
         following = db_service.execute_query("""
             SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio,
                    f.created_at as followed_at,
-                   (SELECT COUNT(*) FROM follows WHERE following_id = u.id) as followers_count
+                   (SELECT COUNT(*) FROM follows WHERE following_id = u.id) as followers_count,
+                   CASE WHEN %s IS NOT NULL THEN
+                       (SELECT COUNT(*) > 0 FROM follows 
+                        WHERE follower_id = %s AND following_id = u.id)
+                   ELSE false END as is_following
             FROM follows f
             JOIN users u ON f.following_id = u.id
             WHERE f.follower_id = %s
             ORDER BY f.created_at DESC
             LIMIT %s OFFSET %s
-        """, [user_id, limit, offset], fetch_all=True)
+        """, [current_user_id, current_user_id, user_id, limit, offset], fetch_all=True)
 
         return jsonify({'following': following or []}), 200
 
     except Exception as e:
+        print(f"❌ Error getting following: {e}")
         return jsonify({'error': str(e)}), 500
