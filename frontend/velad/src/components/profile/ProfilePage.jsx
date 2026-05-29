@@ -1,170 +1,57 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { api } from '../../lib/supabase'
-import Post from '../posts/Post'
-import CreatePost from '../posts/CreatePost'
-import UserListItem from '../users/UserListItem'
-import { FaTwitch, FaCalendar, FaMapMarkerAlt, FaLink, FaEdit } from 'react-icons/fa'
-import '../../styles/profile.css'
+// src/components/profile/ProfilePage.jsx
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { api } from '../../lib/supabase';
+import Post from '../posts/Post';
+import CreatePost from '../posts/CreatePost';
+import Messenger from '../messenger/Messenger';
+import UserListItem from '../users/UserListItem';
+import LoadingSpinner from '../common/LoadingSpinner';
+import { FaEdit, FaEnvelope } from 'react-icons/fa';
+import cache from '../../lib/cache';
+import '../../styles/global.css';
 
 const ProfilePage = ({ user: currentUser, setUser }) => {
-  const navigate = useNavigate()
-  const { userId } = useParams()
-  const [profile, setProfile] = useState(null)
-  const [posts, setPosts] = useState([])
-  const [followers, setFollowers] = useState([])
-  const [following, setFollowing] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [loadingPosts, setLoadingPosts] = useState(false)
-  const [loadingFollowers, setLoadingFollowers] = useState(false)
-  const [error, setError] = useState(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const [activeTab, setActiveTab] = useState('posts')
-  const [isFollowing, setIsFollowing] = useState(false)
-  const [followersCount, setFollowersCount] = useState(0)
-  const [followingCount, setFollowingCount] = useState(0)
+  const navigate = useNavigate();
+  const { userId } = useParams();
+  const [profile, setProfile] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [reposts, setReposts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showMessenger, setShowMessenger] = useState(false);
+  const [activeTab, setActiveTab] = useState('posts');
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
+  const [loadingFollowers, setLoadingFollowers] = useState(false);
   const [editForm, setEditForm] = useState({
     display_name: '',
     bio: '',
     location: '',
     website: ''
-  })
+  });
 
-  const profileId = userId || currentUser?.id
-  const isOwnProfile = currentUser && profileId === currentUser.id
+  const profileId = userId || currentUser?.id;
+  const isOwnProfile = currentUser && profileId === currentUser.id;
 
-  // Загрузка профиля
-  const fetchProfile = useCallback(async () => {
-    try {
-      setLoading(true)
-      let profileData
-      
-      if (isOwnProfile) {
-        const token = api.getToken()
-        if (!token) throw new Error('Нет токена авторизации')
-        profileData = await api.getProfile(token)
-      } else {
-        profileData = await api.getUserById(profileId)
-      }
-      
-      setProfile(profileData)
-      setFollowersCount(profileData.followers_count || 0)
-      setFollowingCount(profileData.following_count || 0)
-      
-      setEditForm({
-        display_name: profileData.display_name || '',
-        bio: profileData.bio || '',
-        location: profileData.location || '',
-        website: profileData.website || ''
-      })
-    } catch (err) {
-      setError(err.message)
-      console.error('Error fetching profile:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [profileId, isOwnProfile])
-
-  // Загрузка постов
-  const fetchPosts = useCallback(async () => {
-    setLoadingPosts(true)
-    try {
-      const token = api.getToken()
-      const userPosts = await api.getUserPosts(profileId, token)
-      setPosts(userPosts)
-    } catch (err) {
-      console.error('Error fetching posts:', err)
-    } finally {
-      setLoadingPosts(false)
-    }
-  }, [profileId])
-
-  // Загрузка подписчиков
-  const fetchFollowers = useCallback(async () => {
-    setLoadingFollowers(true)
-    try {
-      const token = api.getToken()
-      const followersList = await api.getFollowers(token, profileId)
-      setFollowers(followersList)
-    } catch (err) {
-      console.error('Error loading followers:', err)
-    } finally {
-      setLoadingFollowers(false)
-    }
-  }, [profileId])
-
-  // Загрузка подписок
-  const fetchFollowing = useCallback(async () => {
-    setLoadingFollowers(true)
-    try {
-      const token = api.getToken()
-      const followingList = await api.getFollowing(token, profileId)
-      setFollowing(followingList)
-    } catch (err) {
-      console.error('Error loading following:', err)
-    } finally {
-      setLoadingFollowers(false)
-    }
-  }, [profileId])
-
-  // Проверка статуса подписки (для чужого профиля)
-  const checkFollowStatus = useCallback(async () => {
-    if (!currentUser || isOwnProfile) return
-    
-    try {
-      const token = api.getToken()
-      const result = await api.searchUsers(token, profile?.username || '')
-      const userFromSearch = result.find(u => u.id === profileId)
-      if (userFromSearch) {
-        setIsFollowing(userFromSearch.is_following || false)
-      }
-    } catch (err) {
-      console.error('Error checking follow status:', err)
-    }
-  }, [profileId, profile?.username, currentUser, isOwnProfile])
-
-  // Подписка/отписка
-  const handleFollow = async () => {
-    try {
-      const token = api.getToken()
-      if (isFollowing) {
-        await api.unfollowUser(token, profileId)
-        setIsFollowing(false)
-        setFollowersCount(prev => prev - 1)
-        // Обновляем списки подписчиков и подписок
-        if (activeTab === 'followers') fetchFollowers()
-        if (activeTab === 'following') fetchFollowing()
-      } else {
-        await api.followUser(token, profileId)
-        setIsFollowing(true)
-        setFollowersCount(prev => prev + 1)
-        // Обновляем списки подписчиков и подписок
-        if (activeTab === 'followers') fetchFollowers()
-        if (activeTab === 'following') fetchFollowing()
-      }
-    } catch (err) {
-      console.error('Follow error:', err)
-    }
-  }
-
-  // Обработчики для постов
+  // ========== ОБРАБОТЧИКИ ПОСТОВ ==========
   const handlePostUpdate = (updatedPost) => {
-    setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p))
-  }
+    setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
+    cache.invalidateProfile(profileId);
+  };
 
   const handlePostDelete = (postId) => {
-    setPosts(prev => prev.filter(p => p.id !== postId))
-  }
+    setPosts(prev => prev.filter(p => p.id !== postId));
+    cache.invalidateProfile(profileId);
+  };
 
   const handleLikeUpdate = (postId, isLiked, newLikesCount) => {
-  setPosts(prevPosts => 
-    prevPosts.map(post => 
+    setPosts(prev => prev.map(post => 
       post.id === postId 
         ? { ...post, is_liked: isLiked, likes_count: newLikesCount }
         : post
-    )
-  )
-}
+    ));
+  };
 
   const handlePostCreated = (newPost) => {
     const completePost = {
@@ -175,235 +62,271 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
       likes_count: 0,
       comments_count: 0,
       is_liked: false
-    }
-    setPosts([completePost, ...posts])
-  }
+    };
+    setPosts([completePost, ...posts]);
+    cache.invalidateProfile(profileId);
+  };
 
-  const handleUpdateProfile = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    
+  // ========== ЗАГРУЗКА РЕПОСТОВ ==========
+  const loadReposts = async () => {
     try {
-      const token = api.getToken()
+      const token = api.getToken();
+      const response = await fetch(`http://localhost:5000/api/profile/${profileId}/reposts`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      const data = await response.json();
+      setReposts(data);
+    } catch (err) {
+      console.error('Error loading reposts:', err);
+    }
+  };
+
+  // Объединение постов и репостов
+  const allPosts = [...posts, ...reposts].sort((a, b) => 
+    new Date(b.created_at) - new Date(a.created_at)
+  );
+
+  // ========== ЗАГРУЗКА ПРОФИЛЯ ==========
+  const loadProfile = async () => {
+    try {
+      setLoading(true);
+      const cachedProfile = cache.getProfile(profileId);
+      if (cachedProfile) {
+        console.log('📦 Using cached profile');
+        setProfile(cachedProfile);
+        setLoading(false);
+        fetchProfileInBackground();
+        return;
+      }
+      await fetchProfileInBackground();
+    } catch (err) {
+      console.error('Error loading profile:', err);
+      setLoading(false);
+    }
+  };
+
+  const fetchProfileInBackground = async () => {
+    try {
+      const token = api.getToken();
+      let profileData;
+      
+      if (isOwnProfile) {
+        profileData = await api.getProfile(token);
+      } else {
+        profileData = await api.getUserById(profileId);
+      }
+      
+      setProfile(profileData);
+      cache.setProfile(profileId, profileData);
+      setEditForm({
+        display_name: profileData.display_name || '',
+        bio: profileData.bio || '',
+        location: profileData.location || '',
+        website: profileData.website || ''
+      });
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========== ЗАГРУЗКА ПОСТОВ ==========
+  const loadPosts = async () => {
+    try {
+      const cachedPosts = cache.getPosts(profileId);
+      if (cachedPosts) {
+        console.log('📦 Using cached posts');
+        setPosts(cachedPosts);
+        fetchPostsInBackground();
+        return;
+      }
+      await fetchPostsInBackground();
+    } catch (err) {
+      console.error('Error loading posts:', err);
+    }
+  };
+
+  const fetchPostsInBackground = async () => {
+    try {
+      const token = api.getToken();
+      const postsData = await api.getUserPosts(profileId, token);
+      setPosts(postsData);
+      cache.setPosts(profileId, postsData);
+    } catch (err) {
+      console.error('Error fetching posts:', err);
+    }
+  };
+
+  // ========== ПОДПИСЧИКИ И ПОДПИСКИ ==========
+  const loadFollowers = async () => {
+    setLoadingFollowers(true);
+    try {
+      const token = api.getToken();
+      const data = await api.getFollowers(token, profile.id);
+      setFollowers(data);
+    } catch (err) {
+      console.error('Error loading followers:', err);
+    } finally {
+      setLoadingFollowers(false);
+    }
+  };
+
+  const loadFollowing = async () => {
+    setLoadingFollowers(true);
+    try {
+      const token = api.getToken();
+      const data = await api.getFollowing(token, profile.id);
+      setFollowing(data);
+    } catch (err) {
+      console.error('Error loading following:', err);
+    } finally {
+      setLoadingFollowers(false);
+    }
+  };
+
+  // ========== ОБНОВЛЕНИЕ ПРОФИЛЯ ==========
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      const token = api.getToken();
       const updated = await api.updateProfile(token, {
         display_name: editForm.display_name,
         bio: editForm.bio,
         location: editForm.location,
         website: editForm.website
-      })
+      });
       
-      setProfile(prev => ({ ...prev, ...updated.user }))
-      if (setUser && isOwnProfile) {
-        setUser({ ...currentUser, ...updated.user })
+      setProfile(updated.user);
+      cache.invalidateProfile(profileId);
+      if (isOwnProfile && setUser) {
+        setUser(prev => ({ ...prev, ...updated.user }));
       }
-      setIsEditing(false)
+      setIsEditing(false);
     } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
+      console.error('Error updating profile:', err);
     }
-  }
+  };
 
-  const formatDate = (date) => {
-    if (!date) return 'недавно'
-    return new Date(date).toLocaleDateString('ru-RU', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
-  }
+  // ========== ПОДПИСКА/ОТПИСКА ==========
+  const handleFollow = async () => {
+    try {
+      const token = api.getToken();
+      if (profile?.is_following) {
+        await api.unfollowUser(token, profileId);
+        setProfile(prev => ({ ...prev, is_following: false, followers_count: (prev.followers_count || 0) - 1 }));
+      } else {
+        await api.followUser(token, profileId);
+        setProfile(prev => ({ ...prev, is_following: true, followers_count: (prev.followers_count || 0) + 1 }));
+      }
+      cache.invalidateProfile(profileId);
+    } catch (err) {
+      console.error('Error following/unfollowing:', err);
+    }
+  };
 
-  // Загрузка всех данных при изменении profileId
+  // ========== EFFECTS ==========
   useEffect(() => {
     if (!currentUser && !userId) {
-      navigate('/login')
-      return
+      navigate('/login');
+      return;
     }
-    if (profileId) {
-      fetchProfile()
-    }
-  }, [profileId, currentUser, userId, navigate, fetchProfile])
+    loadProfile();
+    loadPosts();
+    loadReposts(); // ← ДОБАВЬ ЭТУ СТРОКУ!
+  }, [profileId]);
 
-  // Загрузка постов при загрузке профиля
-  useEffect(() => {
-    if (profile) {
-      fetchPosts()
-      checkFollowStatus()
-    }
-  }, [profile, fetchPosts, checkFollowStatus])
-
-  // Загрузка списков при смене активной вкладки
-  useEffect(() => {
-    if (activeTab === 'followers' && profileId) {
-      fetchFollowers()
-    }
-    if (activeTab === 'following' && profileId) {
-      fetchFollowing()
-    }
-  }, [activeTab, profileId, fetchFollowers, fetchFollowing])
-
-  // Обновление подписчиков/подписок при изменении статуса подписки
-  useEffect(() => {
-    if (activeTab === 'followers') fetchFollowers()
-    if (activeTab === 'following') fetchFollowing()
-  }, [followersCount, followingCount, activeTab, fetchFollowers, fetchFollowing])
-
-  if (loading) {
-    return (
-      <div className="profile-loading">
-        <div className="spinner"></div>
-        <p>Загрузка профиля...</p>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="profile-error">
-        <p>Ошибка: {error}</p>
-        <button onClick={fetchProfile} className="btn btn-primary">Повторить</button>
-      </div>
-    )
-  }
-
-  if (!profile) {
-    return (
-      <div className="profile-error">
-        <p>Профиль не найден</p>
-        <button onClick={fetchProfile} className="btn btn-primary">Обновить</button>
-      </div>
-    )
-  }
+  // ========== РЕНДЕР ==========
+  if (loading) return <LoadingSpinner />;
+  if (!profile) return <div className="error-message">Профиль не найден</div>;
 
   return (
     <div className="profile-container">
       <div className="profile-header">
-        <div className="profile-banner">
-          {profile.banner_url && <img src={profile.banner_url} alt="Banner" />}
+        <div className="profile-avatar">
+          <img 
+            src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.display_name}&background=9146FF&color=fff&size=128`}
+            alt={profile.display_name}
+          />
         </div>
-
         <div className="profile-info">
-          <div className="profile-avatar">
-            <img
-              src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.display_name}&background=9146FF&color=fff&size=128`}
-              alt={profile.display_name}
-            />
+          <h1>{profile.display_name}</h1>
+          <p>@{profile.username}</p>
+          {profile.bio && <p className="profile-bio">{profile.bio}</p>}
+          <div className="profile-stats">
+            <span>📊 {profile.followers_count || 0} подписчиков</span>
+            <span>📌 {profile.following_count || 0} подписок</span>
+            <span>📝 {(posts.length + reposts.length)} постов</span>
           </div>
-
-          <div className="profile-details">
-            <div className="profile-name">
-              <h1>{profile.display_name}</h1>
-              <p>@{profile.username}</p>
-            </div>
-
+          <div className="profile-actions">
             {isOwnProfile ? (
               <button onClick={() => setIsEditing(true)} className="btn-edit">
                 <FaEdit /> Редактировать
               </button>
             ) : (
-              <button 
-                onClick={handleFollow} 
-                className={`btn-follow ${isFollowing ? 'following' : ''}`}
-              >
-                {isFollowing ? 'Отписаться' : 'Подписаться'}
-              </button>
+              <>
+                <button 
+                  className={`btn-follow ${profile.is_following ? 'following' : ''}`}
+                  onClick={handleFollow}
+                >
+                  {profile.is_following ? 'Отписаться' : 'Подписаться'}
+                </button>
+                <button 
+                  className="btn-message"
+                  onClick={() => setShowMessenger(true)}
+                >
+                  <FaEnvelope /> Написать
+                </button>
+              </>
             )}
-          </div>
-
-          <div className="profile-stats">
-            <div className="stat-item">
-              <span className="stat-value">{followersCount}</span>
-              <span className="stat-label">подписчиков</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-value">{followingCount}</span>
-              <span className="stat-label">подписок</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-value">{posts.length}</span>
-              <span className="stat-label">постов</span>
-            </div>
-          </div>
-
-          {profile.bio && (
-            <div className="profile-bio">
-              <p>{profile.bio}</p>
-            </div>
-          )}
-
-          <div className="profile-meta">
-            {profile.location && (
-              <span className="meta-item">
-                <FaMapMarkerAlt /> {profile.location}
-              </span>
-            )}
-            {profile.website && (
-              <a
-                href={profile.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="meta-item"
-              >
-                <FaLink /> {profile.website.replace(/^https?:\/\//, '')}
-              </a>
-            )}
-            <span className="meta-item">
-              <FaCalendar /> Присоединился {formatDate(profile.created_at)}
-            </span>
           </div>
         </div>
       </div>
+
+      {isOwnProfile && (
+        <CreatePost 
+          token={api.getToken()} 
+          onPostCreated={handlePostCreated}
+        />
+      )}
 
       <div className="profile-tabs">
         <button 
           className={`tab-button ${activeTab === 'posts' ? 'active' : ''}`}
           onClick={() => setActiveTab('posts')}
         >
-          Посты
+          Посты ({posts.length + reposts.length})
         </button>
         <button 
           className={`tab-button ${activeTab === 'followers' ? 'active' : ''}`}
-          onClick={() => setActiveTab('followers')}
+          onClick={() => { setActiveTab('followers'); loadFollowers(); }}
         >
-          Подписчики
+          Подписчики ({profile.followers_count || 0})
         </button>
         <button 
           className={`tab-button ${activeTab === 'following' ? 'active' : ''}`}
-          onClick={() => setActiveTab('following')}
+          onClick={() => { setActiveTab('following'); loadFollowing(); }}
         >
-          Подписки
+          Подписки ({profile.following_count || 0})
         </button>
       </div>
-      
+
       <div className="tab-content">
         {activeTab === 'posts' && (
           <div className="posts-list">
-            {isOwnProfile && (
-              <CreatePost 
-                token={api.getToken()} 
-                onPostCreated={handlePostCreated}
-              />
-            )}
-            
-            {loadingPosts ? (
-              <div className="loading">Загрузка постов...</div>
-            ) : posts.length === 0 ? (
-              <div className="empty-posts">
-                <p>У пользователя пока нет постов</p>
-                {isOwnProfile && (
-                  <p>Напишите что-нибудь, чтобы поделиться с сообществом!</p>
-                )}
-              </div>
+            {allPosts.length === 0 ? (
+              <div className="empty-posts">Нет постов</div>
             ) : (
-              posts.map(post => (
+              allPosts.map(item => (
                 <Post 
-                  key={post.id} 
-                  post={post} 
+                  key={item.id} 
+                  post={item} 
                   token={api.getToken()}
                   isOwnPost={isOwnProfile}
+                  currentUserId={currentUser?.id}
                   onPostUpdate={handlePostUpdate}
                   onPostDelete={handlePostDelete}
-                  onLikeUpdate={handleLikeUpdate} 
+                  onLikeUpdate={handleLikeUpdate}
                 />
               ))
             )}
@@ -421,16 +344,12 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
                 <UserListItem 
                   key={follower.id} 
                   user={follower} 
-                  token={api.getToken()}
+                  token={api.getToken()} 
                   currentUserId={currentUser?.id}
                   onFollowChange={(userId, isNowFollowing) => {
                     setFollowers(prev => prev.map(f => 
                       f.id === userId ? { ...f, is_following: isNowFollowing } : f
-                    ))
-                    // Обновляем счетчик подписчиков в профиле
-                    if (userId === profileId) {
-                      setFollowersCount(prev => isNowFollowing ? prev + 1 : prev - 1)
-                    }
+                    ));
                   }}
                 />
               ))
@@ -449,12 +368,12 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
                 <UserListItem 
                   key={follow.id} 
                   user={follow} 
-                  token={api.getToken()}
+                  token={api.getToken()} 
                   currentUserId={currentUser?.id}
                   onFollowChange={(userId, isNowFollowing) => {
                     setFollowing(prev => prev.map(f => 
                       f.id === userId ? { ...f, is_following: isNowFollowing } : f
-                    ))
+                    ));
                   }}
                 />
               ))
@@ -483,7 +402,6 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
                     required
                   />
                 </div>
-
                 <div className="form-group">
                   <label className="form-label">О себе</label>
                   <textarea
@@ -494,7 +412,6 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
                     placeholder="Расскажите о себе..."
                   />
                 </div>
-
                 <div className="form-group">
                   <label className="form-label">Местоположение</label>
                   <input
@@ -505,9 +422,8 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
                     placeholder="Город, страна"
                   />
                 </div>
-
                 <div className="form-group">
-                  <label className="form-label">Ссылка на Twitch канал</label>
+                  <label className="form-label">Веб-сайт</label>
                   <input
                     type="url"
                     value={editForm.website}
@@ -518,19 +434,25 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary">
-                  Отмена
-                </button>
-                <button type="submit" disabled={loading} className="btn btn-primary">
-                  {loading ? 'Сохранение...' : 'Сохранить'}
-                </button>
+                <button type="button" onClick={() => setIsEditing(false)} className="btn-secondary">Отмена</button>
+                <button type="submit" className="btn btn-primary">Сохранить</button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
-  )
-}
 
-export default ProfilePage
+      {showMessenger && (
+        <Messenger 
+          currentUserId={currentUser?.id}
+          otherUserId={profile.id}
+          otherUserName={profile.display_name}
+          otherUserAvatar={profile.avatar_url}
+          onClose={() => setShowMessenger(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ProfilePage;

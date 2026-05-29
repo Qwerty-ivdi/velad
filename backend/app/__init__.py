@@ -4,9 +4,16 @@ from app.config import Config
 from app.services.db_service import db_service
 from app.routes.auth import auth_bp
 from app.routes.profile import profile_bp
-from app.routes.posts import posts_bp  # ← импорт
+from app.routes.posts import posts_bp
+# from app.routes.twitch import twitch_bp
+# from app.services.twitch_service import twitch_service
+from flask_socketio import SocketIO
+from app.socket_handlers import register_socket_handlers
 import os
 from pathlib import Path
+from app.routes.messenger import messenger_bp
+
+socketio = SocketIO()
 
 def create_app():
     app = Flask(__name__)
@@ -22,15 +29,22 @@ def create_app():
     except Exception as e:
         print(f"⚠️ Database connection warning: {e}")
 
+    # Инициализация Socket.IO
+    socketio.init_app(app, cors_allowed_origins="*")
+
     # Создаем папку для загрузок
     BASE_DIR = Path(__file__).resolve().parent.parent
     UPLOAD_FOLDER = BASE_DIR / 'uploads'
     UPLOAD_FOLDER.mkdir(exist_ok=True)
-
+    # twitch_service.init_app(app)
     # Регистрация Blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(profile_bp, url_prefix='/api')
-    app.register_blueprint(posts_bp, url_prefix='/api')  # ← добавляем
+    app.register_blueprint(posts_bp, url_prefix='/api')
+    # app.register_blueprint(twitch_bp, url_prefix='/api')
+    app.register_blueprint(messenger_bp, url_prefix='/api')
+    # Регистрация WebSocket обработчиков
+    register_socket_handlers(socketio, db_service)
 
     @app.route('/uploads/<path:filename>')
     def serve_upload(filename):
@@ -53,4 +67,4 @@ def create_app():
                 'database': 'disconnected'
             }, 500
 
-    return app
+    return app, socketio

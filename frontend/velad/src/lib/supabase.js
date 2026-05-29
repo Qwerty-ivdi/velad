@@ -2,6 +2,41 @@
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api'
 
 export const api = {
+
+  // Репосты
+  async repostPost(token, postId, content = '') {
+    const response = await fetch(`${API_URL}/posts/${postId}/repost`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ content })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Ошибка создания репоста');
+    return result;
+  },
+
+  async removeRepost(token, postId) {
+    const response = await fetch(`${API_URL}/posts/${postId}/repost`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Ошибка удаления репоста');
+    return result;
+  },
+
+  async getReposts(token, postId) {
+    const response = await fetch(`${API_URL}/posts/${postId}/reposts`, {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Ошибка получения репостов');
+    return result.reposts;
+  },
+
   // Аутентификация
   async register(data) {
     const response = await fetch(`${API_URL}/auth/register`, {
@@ -24,6 +59,25 @@ export const api = {
     if (!response.ok) throw new Error(result.error || 'Ошибка входа')
     return result
   },
+
+  // Мессенджер
+async getConversations(token) {
+  const response = await fetch(`${API_URL}/conversations`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Ошибка получения диалогов');
+  return result;
+},
+
+async getConversationMessages(token, conversationId) {
+  const response = await fetch(`${API_URL}/conversations/${conversationId}/messages`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Ошибка получения сообщений');
+  return result;
+},
 
   // Профиль
   async getProfile(token) {
@@ -57,13 +111,13 @@ export const api = {
   },
 
   // Комментарии
-async getComments(token, postId, limit = 20, offset = 0) {
-  const response = await fetch(`${API_URL}/posts/${postId}/comments?limit=${limit}&offset=${offset}`, {
+async getComments(token, postId, limit = 50) {
+  const response = await fetch(`${API_URL}/posts/${postId}/comments?limit=${limit}`, {
     headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-  })
-  const result = await response.json()
-  if (!response.ok) throw new Error(result.error || 'Ошибка получения комментариев')
-  return result
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Ошибка получения комментариев');
+  return result;
 },
 
 async createComment(token, postId, content, parentId = null) {
@@ -74,30 +128,30 @@ async createComment(token, postId, content, parentId = null) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ content, parent_id: parentId })
-  })
-  const result = await response.json()
-  if (!response.ok) throw new Error(result.error || 'Ошибка создания комментария')
-  return result
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Ошибка создания комментария');
+  return result;
 },
 
 async deleteComment(token, commentId) {
   const response = await fetch(`${API_URL}/comments/${commentId}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` }
-  })
-  const result = await response.json()
-  if (!response.ok) throw new Error(result.error || 'Ошибка удаления комментария')
-  return result
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Ошибка удаления комментария');
+  return result;
 },
 
 async likeComment(token, commentId) {
   const response = await fetch(`${API_URL}/comments/${commentId}/like`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` }
-  })
-  const result = await response.json()
-  if (!response.ok) throw new Error(result.error || 'Ошибка')
-  return result
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Ошибка');
+  return result;
 },
 
   // Посты
@@ -226,19 +280,19 @@ async unfollowUser(token, userId) {
 async getFollowers(token, userId, limit = 20, offset = 0) {
   const response = await fetch(`${API_URL}/users/${userId}/followers?limit=${limit}&offset=${offset}`, {
     headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-  })
-  const result = await response.json()
-  if (!response.ok) throw new Error(result.error || 'Ошибка')
-  return result.followers || []
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Ошибка получения подписчиков');
+  return result.followers || [];
 },
 
 async getFollowing(token, userId, limit = 20, offset = 0) {
   const response = await fetch(`${API_URL}/users/${userId}/following?limit=${limit}&offset=${offset}`, {
     headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-  })
-  const result = await response.json()
-  if (!response.ok) throw new Error(result.error || 'Ошибка')
-  return result.following || []
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Ошибка получения подписок');
+  return result.following || [];
 },
 
 async likePost(token, postId) {
@@ -252,6 +306,13 @@ async likePost(token, postId) {
   const result = await response.json()
   if (!response.ok) throw new Error(result.error || 'Ошибка')
   return result  
+},
+
+async getUserStats(userId) {
+  const response = await fetch(`${API_URL}/profile/${userId}/stats`);
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Ошибка получения статистики');
+  return result;
 },
 
 async getProfileWithFollowStatus(token, userId) {
