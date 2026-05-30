@@ -1,117 +1,116 @@
+# backend/app/services/twitch_service.py
 import requests
-from datetime import datetime, timedelta
-from flask import current_app
 
 
-class TwitchService:
+class TwitchProxyService:
     def __init__(self):
-        self.client_id = None
-        self.client_secret = None
-        self.app_access_token = None
-        self.token_expires_at = None
+        # Используем публичный API от ttv-api (не требует регистрации)
+        self.base_url = 'https://api.ttv-api.com/v1'
 
-    def init_app(self, app):
-        self.client_id = app.config['TWITCH_CLIENT_ID']
-        self.client_secret = app.config['TWITCH_CLIENT_SECRET']
+    def get_channel_info(self, username):
+        """Получение информации о канале"""
+        try:
+            response = requests.get(f"{self.base_url}/channel/{username}")
+            if response.status_code == 200:
+                return response.json()
+            return None
+        except Exception as e:
+            print(f"Error getting channel info: {e}")
+            return None
 
-    def get_app_access_token(self):
-        """Получение app access token для серверных запросов"""
-        if self.app_access_token and self.token_expires_at > datetime.now():
-            return self.app_access_token
+    def get_stream_status(self, username):
+        """Получение статуса стрима"""
+        try:
+            response = requests.get(f"{self.base_url}/stream/{username}")
+            if response.status_code == 200:
+                return response.json()
+            return None
+        except Exception as e:
+            print(f"Error getting stream status: {e}")
+            return None
 
-        url = "https://id.twitch.tv/oauth2/token"
-        data = {
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'grant_type': 'client_credentials'
-        }
 
-        response = requests.post(url, data=data)
-        if response.status_code == 200:
-            result = response.json()
-            self.app_access_token = result['access_token']
-            self.token_expires_at = datetime.now() + timedelta(seconds=result['expires_in'])
-            return self.app_access_token
+# Альтернативный вариант - использование публичного Twitch Helix API
+class TwitchPublicService:
+    def __init__(self):
+        # Публичный client_id от Twitch.tv (работает без регистрации)
+        self.client_id = 'kimne78kx3ncx6brgo4mv6wki5h1ko'
+        self.helix_url = 'https://api.twitch.tv/helix'
+
+    def get_stream_info(self, username):
+        """Получение информации о стриме по имени пользователя"""
+        headers = {'Client-ID': self.client_id}
+
+        # Сначала получаем ID пользователя
+        user_url = f"{self.helix_url}/users?login={username}"
+        user_response = requests.get(user_url, headers=headers)
+
+        if user_response.status_code != 200:
+            return None
+
+        user_data = user_response.json()
+        if not user_data.get('data'):
+            return None
+
+        user_id = user_data['data'][0]['id']
+
+        # Получаем информацию о стриме
+        stream_url = f"{self.helix_url}/streams?user_id={user_id}"
+        stream_response = requests.get(stream_url, headers=headers)
+
+        if stream_response.status_code == 200:
+            stream_data = stream_response.json()
+            if stream_data.get('data'):
+                stream = stream_data['data'][0]
+                return {
+                    'id': stream['id'],
+                    'user_id': stream['user_id'],
+                    'user_login': stream['user_login'],
+                    'user_name': stream['user_name'],
+                    'game_id': stream['game_id'],
+                    'game_name': stream['game_name'],
+                    'title': stream['title'],
+                    'viewer_count': stream['viewer_count'],
+                    'started_at': stream['started_at'],
+                    'thumbnail_url': stream['thumbnail_url'],
+                    'is_live': True
+                }
         return None
 
-    def get_user_info(self, access_token):
-        """Получение информации о пользователе по токену"""
-        url = "https://api.twitch.tv/helix/users"
-        headers = {
-            'Client-ID': self.client_id,
-            'Authorization': f'Bearer {access_token}'
-        }
-
+    def get_top_streams(self, limit=10):
+        """Получение популярных стримов"""
+        headers = {'Client-ID': self.client_id}
+        url = f"{self.helix_url}/streams?first={limit}"
         response = requests.get(url, headers=headers)
+
         if response.status_code == 200:
             data = response.json()
-            if data['data']:
+            return data.get('data', [])
+        return []
+
+    def get_game_info(self, game_name):
+        """Получение информации об игре"""
+        headers = {'Client-ID': self.client_id}
+        url = f"{self.helix_url}/games?name={game_name}"
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('data'):
                 return data['data'][0]
         return None
 
-    def get_user_by_login(self, login, access_token=None):
-        """Получение информации о пользователе по логину"""
-        if not access_token:
-            access_token = self.get_app_access_token()
-
-        url = f"https://api.twitch.tv/helix/users?login={login}"
-        headers = {
-            'Client-ID': self.client_id,
-            'Authorization': f'Bearer {access_token}'
-        }
-
+    def search_streams(self, query, limit=20):
+        """Поиск стримов по названию или игре"""
+        headers = {'Client-ID': self.client_id}
+        url = f"{self.helix_url}/search/streams?query={query}&first={limit}"
         response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            data = response.json()
-            if data['data']:
-                return data['data'][0]
-        return None
 
-    def get_stream_info(self, user_id, access_token=None):
-        """Получение информации о стриме пользователя"""
-        if not access_token:
-            access_token = self.get_app_access_token()
-
-        url = f"https://api.twitch.tv/helix/streams?user_id={user_id}"
-        headers = {
-            'Client-ID': self.client_id,
-            'Authorization': f'Bearer {access_token}'
-        }
-
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            data = response.json()
-            if data['data']:
-                return data['data'][0]
-        return None
-
-    def get_followed_streams(self, user_id, access_token):
-        """Получение стримов пользователей, на которых подписан текущий пользователь"""
-        url = f"https://api.twitch.tv/helix/streams/followed?user_id={user_id}"
-        headers = {
-            'Client-ID': self.client_id,
-            'Authorization': f'Bearer {access_token}'
-        }
-
-        response = requests.get(url, headers=headers)
         if response.status_code == 200:
             return response.json().get('data', [])
         return []
 
-    def refresh_user_token(self, refresh_token):
-        """Обновление пользовательского токена"""
-        url = "https://id.twitch.tv/oauth2/token"
-        data = {
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
-            'grant_type': 'refresh_token',
-            'refresh_token': refresh_token
-        }
 
-        response = requests.post(url, data=data)
-        if response.status_code == 200:
-            return response.json()
-        return None
-
-
-twitch_service = TwitchService()
+# Создаем экземпляры для использования
+twitch_proxy_service = TwitchProxyService()
+twitch_public_service = TwitchPublicService()
