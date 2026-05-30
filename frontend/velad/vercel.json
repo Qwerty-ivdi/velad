@@ -1,6 +1,0 @@
-{
-  "buildCommand": "npm run build:vercel",
-  "outputDirectory": "build",
-  "devCommand": "react-scripts start",
-  "installCommand": "npm install"
-}
