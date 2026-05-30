@@ -227,14 +227,14 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
 
   // ========== EFFECTS ==========
   useEffect(() => {
-    if (!currentUser && !userId) {
-      navigate('/login');
-      return;
-    }
-    loadProfile();
-    loadPosts();
-    loadReposts(); // ← ДОБАВЬ ЭТУ СТРОКУ!
-  }, [profileId]);
+  if (!currentUser && !userId) {
+    navigate('/login');
+    return;
+  }
+  loadProfile();
+  loadPosts();
+  loadReposts();
+}, [profileId, currentUser, userId, navigate]);
 
   // ========== РЕНДЕР ==========
   if (loading) return <LoadingSpinner />;

@@ -8,6 +8,7 @@ import AuthCallback from './components/auth/AuthCallback'
 import Navbar from './components/layout/Navbar'
 import LoadingSpinner from './components/common/LoadingSpinner'
 import SearchPage from './components/search/SearchPage'
+import StreamsPage from './components/twitch/StreamsPage';
 
 function App() {
   const [user, setUser] = useState(null)
@@ -50,6 +51,7 @@ function App() {
           <Route path="/search" element={
             user ? <SearchPage token={api.getToken()} /> : <Navigate to="/login" />
           } />
+          <Route path="/streams" element={<StreamsPage />} />
         </Routes>
       </div>
     </Router>

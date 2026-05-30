@@ -4,6 +4,7 @@ import { api } from '../../lib/supabase';
 import { FaGamepad, FaHome, FaUser, FaSignOutAlt, FaBars, FaTimes, FaChevronDown, FaSearch, FaEnvelope } from 'react-icons/fa';
 import Messenger from '../messenger/Messenger';
 import '../../styles/navbar.css'
+import { FaTwitch } from 'react-icons/fa';
 
 const Navbar = ({ user, setUser }) => {
   const navigate = useNavigate();
@@ -46,6 +47,9 @@ const Navbar = ({ user, setUser }) => {
               </Link>
               <Link to="/search" className={`navbar-link ${isActive('/search') ? 'active' : ''}`} onClick={() => setIsMobileMenuOpen(false)}>
                 <FaSearch /> Поиск
+              </Link>
+              <Link to="/streams" className={`navbar-link ${isActive('/streams') ? 'active' : ''}`}>
+                <FaTwitch /> Стримы
               </Link>
             </div>
 

@@ -31,21 +31,21 @@ const Post = ({ post, token, isOwnPost = false, currentUserId, onPostUpdate, onP
   };
 
   const handleLike = async () => {
-    if (loading) return;
-    setLoading(true);
-    try {
-      const result = await api.likePost(token, post.id);
-      const newLiked = result.action === 'liked';
-      const newLikesCount = result.likes_count;
-      setLiked(newLiked);
-      setLikesCount(newLikesCount);
-      if (onLikeUpdate) onLikeUpdate(post.id, newLiked, newLikesCount);
-    } catch (err) {
-      console.error('Like error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (loading) return;
+  setLoading(true);
+  try {
+    const result = await api.likePost(token, post.id);  // ← result объявлен здесь
+    const newLiked = result.action === 'liked';
+    const newLikesCount = result.likes_count;
+    setLiked(newLiked);
+    setLikesCount(newLikesCount);
+    if (onLikeUpdate) onLikeUpdate(post.id, newLiked, newLikesCount);
+  } catch (err) {
+    console.error('Like error:', err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleEdit = async () => {
     if (!editContent.trim()) return;

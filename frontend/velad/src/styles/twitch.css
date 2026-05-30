@@ -1,0 +1,324 @@
+/* Страница стримов */
+.streams-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.streams-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.streams-header h1 {
+  color: white;
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.streams-search {
+  position: relative;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+}
+
+.streams-search input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 2rem;
+  color: white;
+  font-size: 1rem;
+}
+
+.streams-search button {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #8b5cf6;
+  color: white;
+  border: none;
+  padding: 0.25rem 1rem;
+  border-radius: 1.5rem;
+  cursor: pointer;
+}
+
+.streams-tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 1rem;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  color: #8b5cf6;
+  border-bottom: 2px solid #8b5cf6;
+}
+
+.tab-btn:hover {
+  color: white;
+}
+
+.streams-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Карточка стрима */
+.twitch-stream-card {
+  background: #1e293b;
+  border-radius: 1rem;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.twitch-stream-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.stream-preview {
+  position: relative;
+}
+
+.stream-preview img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.live-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  background: #ef4444;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.viewer-count {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stream-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.twitch-stream-card:hover .stream-overlay {
+  opacity: 1;
+}
+
+.watch-btn {
+  background: #9146FF;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 2rem;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stream-info {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.streamer-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.stream-details {
+  flex: 1;
+}
+
+.stream-details h3, .stream-details h4 {
+  color: white;
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.streamer-name a {
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.streamer-name a:hover {
+  color: #8b5cf6;
+}
+
+.game-name {
+  color: #64748b;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.started-at {
+  color: #64748b;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.stream-actions {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  border-top: 1px solid #334155;
+}
+
+.stream-action-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.stream-action-btn:hover {
+  color: #8b5cf6;
+}
+
+/* Виджет Twitch в профиле */
+.profile-twitch-widget {
+  background: #1e293b;
+  border-radius: 1rem;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.widget-header {
+  background: #0f172a;
+  padding: 0.75rem 1rem;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #334155;
+}
+
+.widget-content {
+  padding: 1rem;
+}
+
+.connect-twitch-btn {
+  background: #9146FF;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.live-badge-large {
+  background: #ef4444;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+.watch-stream-btn {
+  display: inline-block;
+  background: #9146FF;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  margin-top: 0.5rem;
+}
+
+.loading-streams, .no-streams {
+  text-align: center;
+  padding: 3rem;
+  color: #64748b;
+}
+
+.hint {
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .streams-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .streams-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .stream-info {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .streamer-avatar {
+    margin: 0 auto;
+  }
+}

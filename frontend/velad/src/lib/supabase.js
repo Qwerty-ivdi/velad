@@ -220,16 +220,6 @@ async deletePost(token, postId) {
   }
 },
 
-  async likePost(token, postId) {
-    const response = await fetch(`${API_URL}/posts/${postId}/like`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    const result = await response.json()
-    if (!response.ok) throw new Error(result.error || 'Ошибка')
-    return result
-  },
-
   async uploadImage(token, file) {
     const formData = new FormData()
     formData.append('file', file)
