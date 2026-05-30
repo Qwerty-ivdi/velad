@@ -1,6 +1,6 @@
 # app/services/db_service.py
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 from flask import current_app
 
 
@@ -14,9 +14,9 @@ class DatabaseService:
 
     def get_connection(self):
         """Получение подключения к БД"""
-        return psycopg2.connect(
+        return psycopg.connect(
             current_app.config['DATABASE_URL'],
-            cursor_factory=RealDictCursor,
+            row_factory=dict_row,  # ← правильный способ для psycopg 3
             sslmode='require'
         )
 
