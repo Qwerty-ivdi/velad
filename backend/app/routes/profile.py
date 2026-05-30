@@ -8,7 +8,6 @@ profile_bp = Blueprint('profile', __name__)
 
 
 def get_user_from_token(token):
-    """Получение пользователя из JWT токена"""
     try:
         payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
         user_id = payload.get('user_id')
@@ -22,11 +21,14 @@ def get_user_from_token(token):
             WHERE u.id = %s
         """, [user_id], fetch_one=True)
 
+        # Конвертируем UUID в строку
+        if user and 'id' in user:
+            user['id'] = str(user['id'])
+
         return user
     except Exception as e:
         print(f"Token decode error: {e}")
         return None
-
 
 @profile_bp.route('/profile', methods=['GET'])
 def get_profile():
