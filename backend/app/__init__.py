@@ -16,13 +16,15 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Настройка CORS — разрешаем все нужные origins
-    CORS(app, origins=[
-        'http://localhost:3000',
-        'https://veladtwitch-ntvx9uukb-qwerty-ivdis-projects.vercel.app',
-        'https://velad.vercel.app',
-        'https://velad-*.vercel.app'
-    ], supports_credentials=True, allow_headers=['Content-Type', 'Authorization'])
+    # ====== ВРЕМЕННОЕ РЕШЕНИЕ ДЛЯ CORS ======
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+
+    # ========================================
 
     # Инициализация БД
     db_service.init_app(app)
