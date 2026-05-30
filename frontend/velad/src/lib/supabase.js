@@ -17,6 +17,14 @@ export const api = {
     if (!response.ok) throw new Error(result.error || 'Ошибка создания репоста');
     return result;
   },
+  async getUserReposts(userId, token) {
+  const response = await fetch(`${API_URL}/profile/${userId}/reposts`, {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Ошибка получения репостов');
+  return result;
+},
 
   async removeRepost(token, postId) {
     const response = await fetch(`${API_URL}/posts/${postId}/repost`, {

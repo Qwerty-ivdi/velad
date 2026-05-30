@@ -71,10 +71,7 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
   const loadReposts = async () => {
   try {
     const token = api.getToken();
-    const response = await fetch(`${API_URL}/profile/${profileId}/reposts`, {  // ← используй API_URL
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-    });
-    const data = await response.json();
+    const data = await api.getUserReposts(profileId, token);
     setReposts(data);
   } catch (err) {
     console.error('Error loading reposts:', err);
