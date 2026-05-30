@@ -69,17 +69,17 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
 
   // ========== ЗАГРУЗКА РЕПОСТОВ ==========
   const loadReposts = async () => {
-    try {
-      const token = api.getToken();
-      const response = await fetch(`http://localhost:5000/api/profile/${profileId}/reposts`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
-      const data = await response.json();
-      setReposts(data);
-    } catch (err) {
-      console.error('Error loading reposts:', err);
-    }
-  };
+  try {
+    const token = api.getToken();
+    const response = await fetch(`${API_URL}/profile/${profileId}/reposts`, {  // ← используй API_URL
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+    });
+    const data = await response.json();
+    setReposts(data);
+  } catch (err) {
+    console.error('Error loading reposts:', err);
+  }
+};
 
   // Объединение постов и репостов
   const allPosts = [...posts, ...reposts].sort((a, b) => 
