@@ -12,11 +12,15 @@ class DatabaseService:
             cls._instance = super().__new__(cls)
         return cls._instance
 
+    def init_app(self, app):
+        """Инициализация (пока ничего не делает, но нужен для совместимости)"""
+        pass  # Можешь добавить проверку подключения позже
+
     def get_connection(self):
         """Получение подключения к БД"""
         return psycopg.connect(
             current_app.config['DATABASE_URL'],
-            row_factory=dict_row,  # ← правильный способ для psycopg 3
+            row_factory=dict_row,
             sslmode='require'
         )
 
@@ -33,7 +37,6 @@ class DatabaseService:
                 cur.execute(query, params)
 
                 if return_id:
-                    # Возвращаем ID для INSERT с RETURNING
                     result = cur.fetchone()
                     conn.commit()
                     return result
