@@ -15,6 +15,7 @@ socketio = SocketIO()
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config['SECRET_KEY'] = Config.SECRET_KEY
 
     # ====== ВРЕМЕННОЕ РЕШЕНИЕ ДЛЯ CORS ======
     @app.after_request
