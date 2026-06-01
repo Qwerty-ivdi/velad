@@ -9,6 +9,8 @@ import Navbar from './components/layout/Navbar'
 import LoadingSpinner from './components/common/LoadingSpinner'
 import SearchPage from './components/search/SearchPage'
 import StreamsPage from './components/twitch/StreamsPage';
+import YearlyStats from './components/stats/YearlyStats';
+
 
 function App() {
   const [user, setUser] = useState(null)
@@ -52,6 +54,9 @@ function App() {
             user ? <SearchPage token={api.getToken()} /> : <Navigate to="/login" />
           } />
           <Route path="/streams" element={<StreamsPage />} />
+          <Route path="/stats" element={
+  user ? <YearlyStats token={api.getToken()} /> : <Navigate to="/login" />
+} />
         </Routes>
       </div>
     </Router>

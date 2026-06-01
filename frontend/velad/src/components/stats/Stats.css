@@ -1,0 +1,163 @@
+.yearly-stats {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border-radius: 2rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.stats-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.stats-header h1 {
+  font-size: 2rem;
+  background: linear-gradient(135deg, #8b5cf6, #ec4899);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: #1e293b;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+}
+
+.stat-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: #8b5cf6;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: white;
+}
+
+.stat-label {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.stats-section {
+  margin-bottom: 2rem;
+}
+
+.stats-section h2 {
+  color: white;
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+}
+
+.top-streamers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.streamer-card {
+  background: #1e293b;
+  border-radius: 1rem;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  position: relative;
+}
+
+.streamer-rank {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #8b5cf6;
+  min-width: 50px;
+}
+
+.streamer-info {
+  flex: 1;
+}
+
+.streamer-info h3 {
+  color: white;
+  margin: 0;
+}
+
+.streamer-info p {
+  color: #94a3b8;
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.crown-badge {
+  position: absolute;
+  right: 1rem;
+  top: -0.5rem;
+  font-size: 1.5rem;
+}
+
+.top-reactions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.reaction-card {
+  background: #1e293b;
+  border-radius: 1rem;
+  padding: 1rem;
+  text-align: center;
+  min-width: 80px;
+}
+
+.reaction-icon {
+  font-size: 2rem;
+}
+
+.reaction-count {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: white;
+}
+
+.reaction-type {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.stats-footer {
+  text-align: center;
+  padding-top: 2rem;
+  border-top: 1px solid #334155;
+}
+
+.stats-footer p {
+  color: white;
+  margin: 0.25rem 0;
+}
+
+.next-year {
+  color: #8b5cf6;
+  font-size: 0.9rem;
+}
+
+.stats-loading, .stats-error {
+  text-align: center;
+  padding: 3rem;
+  color: #94a3b8;
+}
