@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { api } from '../../lib/supabase'  // ← импорт api
+import { api, twitchAuth  } from '../../lib/supabase'  // ← импорт api
 import { FaTwitch, FaEnvelope, FaLock } from 'react-icons/fa'
 import '../../styles/auth.css'
 
@@ -10,7 +10,10 @@ const LoginPage = ({ setUser }) => {  // ← добавляем setUser
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-
+  
+  const handleTwitchLogin = () => {
+    twitchAuth.login();
+  };
   const handleEmailLogin = async (e) => {
     e.preventDefault()
     setLoading(true)

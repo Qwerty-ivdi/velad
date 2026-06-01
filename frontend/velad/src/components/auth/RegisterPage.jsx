@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { api } from '../../lib/supabase'  // ← добавляем импорт api
+import { api, twitchAuth  } from '../../lib/supabase'  // ← добавляем импорт api
 import { FaTwitch, FaUser, FaEnvelope, FaLock } from 'react-icons/fa'
 import '../../styles/auth.css'
 
@@ -16,6 +16,9 @@ const RegisterPage = ({ setUser }) => {  // ← добавляем setUser в п
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  const handleTwitchLogin = () => {
+    twitchAuth.login();
+  };
   const handleChange = (e) => {
     setFormData({
       ...formData,
