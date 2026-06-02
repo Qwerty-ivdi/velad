@@ -25,6 +25,24 @@ def validate_username(username):
     return re.match(r'^[a-zA-Z0-9_-]+$', username) is not None
 
 
+def get_frontend_url():
+    """Получить URL фронтенда из переменной окружения"""
+    url = os.environ.get('FRONTEND_URL')
+    if url:
+        return url.rstrip('/')
+    # Fallback для Railway
+    return 'https://veladtwitch.vercel.app'
+
+
+def get_backend_url():
+    """Получить URL бэкенда из переменной окружения"""
+    url = os.environ.get('BACKEND_URL')
+    if url:
+        return url.rstrip('/')
+    # Fallback для Railway
+    return 'https://velad-production.up.railway.app'
+
+
 # ==================== EMAIL/ПАРОЛЬ РЕГИСТРАЦИЯ ====================
 
 @auth_bp.route('/register', methods=['POST'])
@@ -145,25 +163,17 @@ def login():
 
 # ==================== TWITCH OAuth ====================
 
-def get_frontend_url():
-    """Получить URL фронтенда из переменной окружения"""
-    return os.environ.get('FRONTEND_URL')
-
-
-def get_backend_url():
-    """Получить URL бэкенда из переменной окружения"""
-    return os.environ.get('BACKEND_URL')
-
-
 @auth_bp.route('/twitch/login', methods=['GET'])
 def twitch_login():
     """Начало OAuth авторизации через Twitch"""
     state = secrets.token_urlsafe(32)
     session['twitch_oauth_state'] = state
 
-    # Определяем redirect_uri в зависимости от окружения
     backend_url = get_backend_url()
     redirect_uri = f"{backend_url}/api/auth/twitch/callback"
+
+    print(f"🔐 BACKEND URL: {backend_url}")
+    print(f"🔐 REDIRECT URI: {redirect_uri}")
 
     params = {
         'client_id': current_app.config['TWITCH_CLIENT_ID'],
@@ -174,7 +184,6 @@ def twitch_login():
     }
 
     auth_url = f"https://id.twitch.tv/oauth2/authorize?{urlencode(params)}"
-    print(f"🔐 Twitch auth URL: {auth_url}")
     return redirect(auth_url)
 
 
@@ -209,8 +218,10 @@ def twitch_callback():
     print("🔥 TWITCH CALLBACK RECEIVED 🔥")
     print("=" * 60)
 
+    frontend_url = get_frontend_url()
+    backend_url = get_backend_url()
+
     if error:
-        frontend_url = get_frontend_url()
         return redirect(f"{frontend_url}/login?error=twitch_auth_failed")
 
     if not code:
@@ -218,12 +229,10 @@ def twitch_callback():
 
     saved_state = session.pop('twitch_oauth_state', None)
     if not saved_state or saved_state != state:
-        frontend_url = get_frontend_url()
         return redirect(f"{frontend_url}/login?error=invalid_state")
 
     # Обмен кода на токены
     token_url = "https://id.twitch.tv/oauth2/token"
-    backend_url = get_backend_url()
     redirect_uri = f"{backend_url}/api/auth/twitch/callback"
 
     token_data = {
@@ -237,7 +246,6 @@ def twitch_callback():
     token_response = requests.post(token_url, data=token_data)
 
     if token_response.status_code != 200:
-        frontend_url = get_frontend_url()
         return redirect(f"{frontend_url}/login?error=token_exchange_failed")
 
     tokens = token_response.json()
@@ -250,7 +258,6 @@ def twitch_callback():
     # Получаем информацию о пользователе
     user_info = get_twitch_user_info(access_token)
     if not user_info:
-        frontend_url = get_frontend_url()
         return redirect(f"{frontend_url}/login?error=no_user_info")
 
     twitch_id = user_info['id']
@@ -260,7 +267,6 @@ def twitch_callback():
     avatar_url = user_info.get('profile_image_url', '')
 
     print(f"✅ Twitch user: {twitch_login} ({email})")
-    print(f"✅ Twitch ID: {twitch_id}")
 
     # Ищем пользователя
     user = db_service.execute_query(
@@ -306,8 +312,6 @@ def twitch_callback():
     )
 
     print(f"🔑 Generated token: {jwt_token[:50]}...")
-
-    frontend_url = get_frontend_url()
     print(f"✅ Redirecting to frontend: {frontend_url}/auth/callback")
 
     return redirect(f"{frontend_url}/auth/callback?access_token={jwt_token}")
