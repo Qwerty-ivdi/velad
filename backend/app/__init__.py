@@ -60,4 +60,13 @@ def create_app():
     def health_check():
         return {'status': 'ok', 'message': 'Velad API is running'}, 200
 
+    @app.route('/ready', methods=['GET'])
+    def ready_check():
+        # Проверка подключения к БД
+        try:
+            db_service.execute_query("SELECT 1")
+            return {'status': 'ready'}, 200
+        except Exception as e:
+            return {'status': 'not ready', 'error': str(e)}, 500
+
     return app, socketio
