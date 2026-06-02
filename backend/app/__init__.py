@@ -58,7 +58,9 @@ def create_app():
 
     @app.route('/health', methods=['GET'])
     def health_check():
+        print("📍 Health check called")  # Добавьте для отладки
         return {'status': 'ok', 'message': 'Velad API is running'}, 200
+
 
     @app.route('/ready', methods=['GET'])
     def ready_check():
