@@ -25,30 +25,11 @@ def create_app():
 
     # ========== ПРАВИЛЬНАЯ НАСТРОЙКА CORS ==========
     CORS(app,
-         origins=[
-             'http://localhost:3000',
-             'http://localhost:5000',
-             'https://veladtwitch.vercel.app',
-             'https://veladtwitch-br95skt3d-qwerty-ivdis-projects.vercel.app',
-             'https://veladtwitch-qkltnxqmp-qwert.vercel.app',
-             'https://*.vercel.app'
-         ],
+         origins="*",
          supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-         expose_headers=['Content-Type', 'Authorization'])
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'])
 
-    # ========== ДОБАВЛЯЕМ РУЧНЫЕ ЗАГОЛОВКИ ==========
-    @app.after_request
-    def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin',
-            request.headers.get('Origin', 'https://veladtwitch.vercel.app'))
-        response.headers.add('Access-Control-Allow-Headers',
-            'Content-Type, Authorization, X-Requested-With, Accept')
-        response.headers.add('Access-Control-Allow-Methods',
-            'GET, POST, PUT, DELETE, OPTIONS, PATCH')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
 
     # ========== ОТДЕЛЬНЫЙ ОБРАБОТЧИК ДЛЯ OPTIONS ==========
     @app.route('/<path:path>', methods=['OPTIONS'])
