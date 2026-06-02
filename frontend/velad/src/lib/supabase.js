@@ -1,5 +1,5 @@
 // src/lib/supabase.js
-import { API_URL } from '../config';
+import { API_URL } from '../config.js';
 
 export const api = {
   getTwitchToken: async (accessToken) => {
