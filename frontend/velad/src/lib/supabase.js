@@ -1,10 +1,10 @@
 // src/lib/supabase.js
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { API_URL } from '../config';
 
 export const api = {
   getTwitchToken: async (accessToken) => {
     try {
-      const response = await fetch('http://localhost:5000/api/twitch-token', {
+      const response = await fetch(`${API_URL}/twitch-token`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -377,4 +377,3 @@ export const twitchAuth = {
     window.location.href = `${API_URL}/auth/twitch/login`;
   }
 };
-

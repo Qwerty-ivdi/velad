@@ -1,5 +1,6 @@
 // src/hooks/useWatchSession.js
 import { useEffect, useRef } from 'react';
+import { API_URL } from '../config';
 
 export const useWatchSession = (channel, token) => {
   const sessionIdRef = useRef(null);
@@ -14,7 +15,7 @@ export const useWatchSession = (channel, token) => {
       try {
         console.log('🎬 Starting watch session for channel:', channel);
         
-        const response = await fetch('http://localhost:5000/api/track/view/start', {
+        const response = await fetch(`${API_URL}/track/view/start`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -44,7 +45,7 @@ export const useWatchSession = (channel, token) => {
     return () => {
       if (sessionIdRef.current) {
         console.log('🏁 Ending watch session:', sessionIdRef.current);
-        fetch('http://localhost:5000/api/track/view/end', {
+        fetch(`${API_URL}/track/view/end`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,

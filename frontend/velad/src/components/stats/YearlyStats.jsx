@@ -1,6 +1,7 @@
 // src/components/stats/YearlyStats.jsx
 import React, { useState, useEffect } from 'react';
 import { api, twitchAuth } from '../../lib/supabase';
+import { API_URL } from '../../config';
 import { FaTwitch, FaTrophy, FaClock, FaCalendar, FaFire, FaHeart, FaLaugh, FaThumbsUp, FaComment } from 'react-icons/fa';
 import './Stats.css';
 
@@ -15,7 +16,7 @@ const YearlyStats = ({ token, user }) => {
   useEffect(() => {
     const checkTwitchStatus = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/twitch-status', {
+        const response = await fetch(`${API_URL}/twitch-status`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();
@@ -40,7 +41,7 @@ const loadStats = async () => {
   setLoading(true);
   setError(null);
   try {
-    const response = await fetch(`http://localhost:5000/api/yearly`, {
+    const response = await fetch(`${API_URL}/yearly`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     
