@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_socketio import SocketIO
@@ -23,15 +23,46 @@ def create_app():
     app.config['SECRET_KEY'] = Config.SECRET_KEY
     socketio = SocketIO(app, cors_allowed_origins="*")
 
-    # Настройка CORS для продакшена
-    allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,https://veladtwitch.vercel.app').split(',')
-
+    # ========== ПРАВИЛЬНАЯ НАСТРОЙКА CORS ==========
     CORS(app,
-         origins="*",
+         origins=[
+             'http://localhost:3000',
+             'http://localhost:5000',
+             'https://veladtwitch.vercel.app',
+             'https://veladtwitch-br95skt3d-qwerty-ivdis-projects.vercel.app',
+             'https://veladtwitch-qkltnxqmp-qwert.vercel.app',
+             'https://*.vercel.app'
+         ],
          supports_credentials=True,
-         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
          expose_headers=['Content-Type', 'Authorization'])
+
+    # ========== ДОБАВЛЯЕМ РУЧНЫЕ ЗАГОЛОВКИ ==========
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Origin',
+            request.headers.get('Origin', 'https://veladtwitch.vercel.app'))
+        response.headers.add('Access-Control-Allow-Headers',
+            'Content-Type, Authorization, X-Requested-With, Accept')
+        response.headers.add('Access-Control-Allow-Methods',
+            'GET, POST, PUT, DELETE, OPTIONS, PATCH')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
+
+    # ========== ОТДЕЛЬНЫЙ ОБРАБОТЧИК ДЛЯ OPTIONS ==========
+    @app.route('/<path:path>', methods=['OPTIONS'])
+    @app.route('/', methods=['OPTIONS'])
+    def handle_options(path=None):
+        response = app.make_default_options_response()
+        response.headers.add('Access-Control-Allow-Origin',
+            request.headers.get('Origin', 'https://veladtwitch.vercel.app'))
+        response.headers.add('Access-Control-Allow-Headers',
+            'Content-Type, Authorization, X-Requested-With, Accept')
+        response.headers.add('Access-Control-Allow-Methods',
+            'GET, POST, PUT, DELETE, OPTIONS, PATCH')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
 
     # Инициализация БД
     db_service.init_app(app)
@@ -58,13 +89,10 @@ def create_app():
 
     @app.route('/health', methods=['GET'])
     def health_check():
-        print("📍 Health check called")  # Добавьте для отладки
         return {'status': 'ok', 'message': 'Velad API is running'}, 200
-
 
     @app.route('/ready', methods=['GET'])
     def ready_check():
-        # Проверка подключения к БД
         try:
             db_service.execute_query("SELECT 1")
             return {'status': 'ready'}, 200
