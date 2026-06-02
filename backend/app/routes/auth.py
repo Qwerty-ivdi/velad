@@ -147,12 +147,12 @@ def login():
 
 def get_frontend_url():
     """Получить URL фронтенда из переменной окружения"""
-    return os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+    return os.environ.get('FRONTEND_URL')
 
 
 def get_backend_url():
     """Получить URL бэкенда из переменной окружения"""
-    return os.environ.get('BACKEND_URL', 'http://localhost:5000')
+    return os.environ.get('BACKEND_URL')
 
 
 @auth_bp.route('/twitch/login', methods=['GET'])
