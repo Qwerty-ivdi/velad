@@ -14,6 +14,7 @@ from app.routes.twitch import twitch_bp
 from app.services.twitch_service import twitch_service
 from app.routes.twitch_webhook import twitch_webhook_bp
 from app.routes.user import user_bp
+import os
 
 
 def create_app():
@@ -22,23 +23,15 @@ def create_app():
     app.config['SECRET_KEY'] = Config.SECRET_KEY
     socketio = SocketIO(app, cors_allowed_origins="*")
 
-    # 👈 ТОЛЬКО ЭТО, УБЕРИТЕ @app.after_request
+    # Настройка CORS для продакшена
+    allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,https://veladtwitch.vercel.app').split(',')
+
     CORS(app,
-         origins=['http://localhost:3000', 'http://localhost:3001'],
+         origins=allowed_origins,
          supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
          allow_credentials=True)
-
-    # 👈 УДАЛИТЕ ЭТОТ БЛОК - ОН ДУБЛИРУЕТ ЗАГОЛОВКИ!
-    # @app.after_request
-    # def after_request(response):
-    #     response.headers.add('Access-Control-Allow-Origin', '*')
-    #     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    #     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    #     return response
-
-    # ========================================
 
     # Инициализация БД
     db_service.init_app(app)
