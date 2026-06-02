@@ -2,23 +2,23 @@
 import React, { useState, useEffect } from 'react';
 import TwitchStreamCard from './TwitchStreamCard';
 import { FaSearch, FaTwitch, FaFire } from 'react-icons/fa';
+import { API_URL } from '../../config';
 import '../../styles/twitch.css';
-
 
 const StreamsPage = () => {
   const [streams, setStreams] = useState([]);
   const [topStreams, setTopStreams] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');  // ← добавить
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false);   // ← добавить
-  const [error, setError] = useState(null);            // ← добавить
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('top');
 
   const loadTopStreams = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:5000/api/twitch/streams/top?limit=20');
+      const response = await fetch(`${API_URL}/twitch/streams/top?limit=20`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -48,13 +48,11 @@ const StreamsPage = () => {
     setSearching(true);
     setError(null);
     try {
-      // Сначала ищем по названию/игре
-      const response = await fetch(`http://localhost:5000/api/twitch/streams/search?q=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`${API_URL}/twitch/streams/search?q=${encodeURIComponent(searchQuery)}`);
       let results = await response.json();
       
-      // Если ничего не найдено, ищем по имени канала
       if (results.length === 0) {
-        const channelResponse = await fetch(`http://localhost:5000/api/twitch/streams/search/channel?q=${encodeURIComponent(searchQuery)}`);
+        const channelResponse = await fetch(`${API_URL}/twitch/streams/search/channel?q=${encodeURIComponent(searchQuery)}`);
         results = await channelResponse.json();
       }
       

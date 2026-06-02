@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_URL } from '../../config';
 import '../../styles/twitch.css';
 import { FaTwitch, FaGamepad, FaUsers, FaExternalLinkAlt } from 'react-icons/fa';
 
@@ -15,7 +16,7 @@ const ProfileTwitchWidget = ({ twitchLogin, onConnect }) => {
   const loadStreamInfo = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5000/api/twitch/streams/user/${twitchLogin}`);
+      const response = await fetch(`${API_URL}/twitch/streams/user/${twitchLogin}`);
       const data = await response.json();
       setStreamInfo(data);
     } catch (err) {

@@ -5,6 +5,7 @@ import { api } from '../../lib/supabase';
 import { useWatchSession } from '../../hooks/useWatchSession';
 import { FaTwitch, FaClock, FaComment, FaHeart, FaArrowLeft } from 'react-icons/fa';
 import tmi from 'tmi.js';
+import { API_URL } from '../../config';
 import '../../styles/TwitchPlayer.css';
 
 const TwitchPlayer = ({ token, currentUser }) => {
@@ -25,7 +26,7 @@ const TwitchPlayer = ({ token, currentUser }) => {
   const heartbeatInterval = useRef(null);
   const chatClientRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const processedMessageIds = useRef(new Set()); // Для предотвращения дублей
+  const processedMessageIds = useRef(new Set());
   const isInitializedRef = useRef(false);
   
   const sessionId = useWatchSession(channel, token);
@@ -36,7 +37,7 @@ const TwitchPlayer = ({ token, currentUser }) => {
     try {
       console.log('📡 Requesting Twitch token from backend...');
       
-      const response = await fetch('http://localhost:5000/api/twitch-token', {
+      const response = await fetch(`${API_URL}/twitch-token`, {
         method: 'GET',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -114,7 +115,6 @@ const TwitchPlayer = ({ token, currentUser }) => {
           }
         });
 
-        // ИСПРАВЛЕННЫЙ ОБРАБОТЧИК СООБЩЕНИЙ - БЕЗ ДУБЛЕЙ
         client.on('message', (target, context, msg, self) => {
           if (self) return;
           
@@ -122,25 +122,20 @@ const TwitchPlayer = ({ token, currentUser }) => {
           const messageText = msg.trim();
           const twitchMessageId = context.id;
           
-          // Проверка на дублирование по ID сообщения от Twitch
           if (processedMessageIds.current.has(twitchMessageId)) {
             console.log('🔄 Duplicate message skipped:', twitchMessageId);
             return;
           }
           
-          // Добавляем ID в Set
           processedMessageIds.current.add(twitchMessageId);
           
-          // Очищаем Set от старых ID через 5 секунд
           setTimeout(() => {
             processedMessageIds.current.delete(twitchMessageId);
           }, 5000);
           
-          // Добавляем сообщение
           const messageId = `${channel}-${twitchMessageId}`;
           
           setChatMessages(prev => {
-            // Дополнительная проверка перед добавлением
             const exists = prev.some(m => m.id === messageId);
             if (exists) return prev;
             
@@ -178,7 +173,6 @@ const TwitchPlayer = ({ token, currentUser }) => {
     return () => {
       isMounted = false;
       isInitializedRef.current = false;
-      // Очищаем Set
       processedMessageIds.current.clear();
       if (chatClientRef.current) {
         console.log('🧹 Cleaning up chat client...');
@@ -229,9 +223,8 @@ const TwitchPlayer = ({ token, currentUser }) => {
       await chatClientRef.current.say(`#${channel}`, messageText);
       console.log('✅ Message sent to chat:', messageText);
       
-      // Отправка статистики
       try {
-        await fetch('http://localhost:5000/api/track/message', {
+        await fetch(`${API_URL}/track/message`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -253,7 +246,6 @@ const TwitchPlayer = ({ token, currentUser }) => {
     }
   };
 
-  // ==================== ОСТАЛЬНОЙ КОД ====================
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -263,7 +255,7 @@ const TwitchPlayer = ({ token, currentUser }) => {
   const sendHeartbeat = useCallback(async () => {
     if (!sessionId) return;
     try {
-      await fetch('http://localhost:5000/api/track/view/heartbeat', { 
+      await fetch(`${API_URL}/track/view/heartbeat`, { 
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`, 
@@ -296,7 +288,7 @@ const TwitchPlayer = ({ token, currentUser }) => {
 
   const loadStreamInfo = useCallback(async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/twitch/streams/user/${channel}`);
+      const response = await fetch(`${API_URL}/twitch/streams/user/${channel}`);
       const data = await response.json();
       setStreamInfo(data);
     } catch (err) { 
