@@ -1,11 +1,11 @@
 # app/services/db_service.py
-import psycopg2
-import psycopg2.extras
+import asyncpg
+import os
 from flask import current_app
-
 
 class DatabaseService:
     _instance = None
+    _pool = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -13,47 +13,37 @@ class DatabaseService:
         return cls._instance
 
     def init_app(self, app):
-        """Инициализация (пока ничего не делает, но нужен для совместимости)"""
-        pass
+        """Инициализация пула соединений"""
+        self.app = app
 
-    def get_connection(self):
-        """Получение подключения к БД"""
-        return psycopg2.connect(
-            current_app.config['DATABASE_URL'],
-            cursor_factory=psycopg2.extras.RealDictCursor,
-            sslmode='require'
-        )
+    async def get_pool(self):
+        if self._pool is None:
+            self._pool = await asyncpg.create_pool(
+                current_app.config['DATABASE_URL'],
+                min_size=1,
+                max_size=10
+            )
+        return self._pool
 
     def execute_query(self, query, params=None, fetch_one=False, fetch_all=False):
-        try:
-            with self.get_connection() as conn:
-                with conn.cursor() as cur:
-                    # Добавляем отладку
-                    print(f"🔍 Executing query: {query[:100]}...")
-                    print(f"🔍 Params: {params}")
+        """Выполнение SQL запроса (синхронная обёртка)"""
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(
+            self._execute_query_async(query, params, fetch_one, fetch_all)
+        )
 
-                    cur.execute(query, params)
-
-                    if fetch_one:
-                        row = cur.fetchone()
-                        if row:
-                            # RealDictRow уже является словарём
-                            result = dict(row)
-                            print(f"🔍 Result: {result}")
-                            return result
-                        return None
-                    if fetch_all:
-                        rows = cur.fetchall()
-                        if rows:
-                            result = [dict(row) for row in rows]
-                            print(f"🔍 Result count: {len(result)}")
-                            return result
-                        return []
-                    conn.commit()
-                    return cur.rowcount
-        except Exception as e:
-            print(f"Database error: {e}")
-            raise
-
+    async def _execute_query_async(self, query, params, fetch_one, fetch_all):
+        pool = await self.get_pool()
+        async with pool.acquire() as conn:
+            if fetch_one:
+                row = await conn.fetchrow(query, *params if params else [])
+                return dict(row) if row else None
+            if fetch_all:
+                rows = await conn.fetch(query, *params if params else [])
+                return [dict(row) for row in rows]
+            result = await conn.execute(query, *params if params else [])
+            return result
 
 db_service = DatabaseService()
