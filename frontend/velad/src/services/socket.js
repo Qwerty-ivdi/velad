@@ -1,4 +1,8 @@
+// src/services/socket.js
 import { io } from 'socket.io-client';
+
+// Получаем URL из переменной окружения или используем значение по умолчанию
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_API_URL || 'https://velad-production.up.railway.app';
 
 class SocketService {
   constructor() {
@@ -11,7 +15,10 @@ class SocketService {
       return this.socket;
     }
 
-    this.socket = io('http://localhost:5000', {
+    // Убираем /api из URL для сокетов
+    const baseUrl = SOCKET_URL.replace('/api', '');
+    
+    this.socket = io(baseUrl, {
       query: { token },
       transports: ['websocket'],
       reconnection: true,
@@ -20,7 +27,7 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('✅ WebSocket connected');
+      console.log('✅ WebSocket connected to:', baseUrl);
       this.connected = true;
     });
 
@@ -49,7 +56,6 @@ class SocketService {
     return this.socket;
   }
 
-  // Добавляем метод isConnected
   isConnected() {
     return this.connected && this.socket?.connected;
   }
