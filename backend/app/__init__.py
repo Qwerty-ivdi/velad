@@ -27,11 +27,11 @@ def create_app():
     allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,https://veladtwitch.vercel.app').split(',')
 
     CORS(app,
-         origins=allowed_origins,
+         origins="*",
          supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-         allow_credentials=True)
+         expose_headers=['Content-Type', 'Authorization'])
 
     # Инициализация БД
     db_service.init_app(app)
