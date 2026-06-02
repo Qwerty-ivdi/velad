@@ -1,10 +1,12 @@
+// src/components/twitch/TwitchStreamCard.jsx
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';  // ← добавить
 import { FaTwitch, FaUsers, FaGamepad, FaCalendar, FaHeart, FaComment, FaShare } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import '../../styles/twitch.css';
 
 const TwitchStreamCard = ({ stream, compact = false }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const navigate = useNavigate();  // ← добавить
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -16,6 +18,11 @@ const TwitchStreamCard = ({ stream, compact = false }) => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
     if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
     return count.toString();
+  };
+
+  const handleWatch = () => {
+    // Переход на страницу просмотра стрима
+    navigate(`/stream/${stream.user_login}`);
   };
 
   if (!stream) return null;
@@ -33,14 +40,9 @@ const TwitchStreamCard = ({ stream, compact = false }) => {
             <FaUsers /> {formatViewers(stream.viewer_count)}
           </span>
           <div className="stream-overlay">
-            <a 
-              href={`https://twitch.tv/${stream.user_login}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="watch-btn"
-            >
+            <button onClick={handleWatch} className="watch-btn">
               <FaTwitch /> Смотреть
-            </a>
+            </button>
           </div>
         </div>
         <div className="stream-info">
@@ -74,14 +76,9 @@ const TwitchStreamCard = ({ stream, compact = false }) => {
         </span>
         {isHovered && (
           <div className="stream-overlay">
-            <a 
-              href={`https://twitch.tv/${stream.user_login}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="watch-btn"
-            >
-              <FaTwitch /> Смотреть на Twitch
-            </a>
+            <button onClick={handleWatch} className="watch-btn">
+              <FaTwitch /> Смотреть
+            </button>
           </div>
         )}
       </div>
@@ -107,11 +104,11 @@ const TwitchStreamCard = ({ stream, compact = false }) => {
       </div>
       
       <div className="stream-actions">
-        <button className="stream-action-btn">
-          <FaHeart /> <span>Подписаться</span>
+        <button className="stream-action-btn" onClick={handleWatch}>
+          <FaTwitch /> Смотреть
         </button>
         <button className="stream-action-btn">
-          <FaComment /> <span>Чат</span>
+          <FaHeart /> <span>Подписаться</span>
         </button>
         <button className="stream-action-btn">
           <FaShare /> <span>Поделиться</span>

@@ -1,90 +1,76 @@
-import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { api, twitchAuth  } from '../../lib/supabase'  // ← добавляем импорт api
-import { FaTwitch, FaUser, FaEnvelope, FaLock } from 'react-icons/fa'
-import '../../styles/auth.css'
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { api, twitchAuth } from '../../lib/supabase';
+import { FaTwitch, FaUser, FaEnvelope, FaLock } from 'react-icons/fa';
+import '../../styles/auth.css';
 
-const RegisterPage = ({ setUser }) => {  // ← добавляем setUser в пропсы
-  const navigate = useNavigate()
+const RegisterPage = ({ setUser }) => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     username: '',
     displayName: '',
     email: '',
     password: '',
     confirmPassword: ''
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleTwitchLogin = () => {
-    twitchAuth.login();
-  };
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
-    })
-  }
+    });
+  };
 
   const handleEmailRegister = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Пароли не совпадают')
-      setLoading(false)
-      return
+      setError('Пароли не совпадают');
+      setLoading(false);
+      return;
     }
 
     if (formData.password.length < 6) {
-      setError('Пароль должен быть не менее 6 символов')
-      setLoading(false)
-      return
+      setError('Пароль должен быть не менее 6 символов');
+      setLoading(false);
+      return;
     }
 
     try {
-      // 1. Регистрация
+      // Регистрация
       const result = await api.register({
         email: formData.email,
         password: formData.password,
         username: formData.username,
         display_name: formData.displayName
-      })
-      
-      console.log('Registration successful:', result)
-      
-      // 2. Автоматический вход после регистрации
+      });
+
+      // Автоматический вход после регистрации
       const loginResult = await api.login({
         email: formData.email,
         password: formData.password
-      })
-      
-      // 3. Сохраняем токен и пользователя
-      api.setToken(loginResult.access_token)
-      api.setUser(loginResult.user)
-      
-      // 4. Обновляем состояние в App
-      if (setUser) {
-        setUser(loginResult.user)
-      }
-      
-      // 5. Перенаправляем на профиль
-      navigate('/profile')
+      });
+
+      api.setToken(loginResult.access_token);
+      api.setUser(loginResult.user);
+      setUser(loginResult.user);
+      navigate('/profile');
       
     } catch (err) {
-      console.error('Registration error:', err)
-      setError(err.message || 'Ошибка при регистрации')
+      setError(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const handleTwitchRegister = async () => {
-    setLoading(true)
-    // Twitch OAuth через бэкенд
-    window.location.href = 'http://localhost:5000/api/auth/twitch/auth'
-  }
+  const handleTwitchRegister = () => {
+    setLoading(true);
+    twitchAuth.register();
+  };
 
   return (
     <div className="auth-container">
@@ -96,11 +82,7 @@ const RegisterPage = ({ setUser }) => {  // ← добавляем setUser в п
           Или <Link to="/login">войдите в существующий</Link>
         </div>
 
-        {error && (
-          <div className="auth-error">
-            {error}
-          </div>
-        )}
+        {error && <div className="auth-error">{error}</div>}
 
         <form onSubmit={handleEmailRegister}>
           <div className="form-group">
@@ -182,9 +164,7 @@ const RegisterPage = ({ setUser }) => {  // ← добавляем setUser в п
           </button>
         </form>
 
-        <div className="divider">
-          <span>Или продолжить с</span>
-        </div>
+        <div className="divider"><span>Или продолжить с</span></div>
 
         <button
           onClick={handleTwitchRegister}
@@ -202,7 +182,7 @@ const RegisterPage = ({ setUser }) => {  // ← добавляем setUser в п
         </p>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default RegisterPage
+export default RegisterPage;

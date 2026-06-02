@@ -161,3 +161,67 @@
   padding: 3rem;
   color: #94a3b8;
 }
+
+/* Добавь в конец файла */
+
+.stats-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border-radius: 2rem;
+  text-align: center;
+}
+
+.stats-empty {
+  padding: 3rem;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  color: #9146FF;
+  margin-bottom: 1rem;
+}
+
+.stats-empty h3 {
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.stats-empty p {
+  color: #94a3b8;
+  margin-bottom: 1.5rem;
+}
+
+.btn-twitch-connect {
+  background: #9146FF;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 2rem;
+  font-size: 1rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.btn-twitch-connect:hover {
+  background: #7B3FE4;
+  transform: translateY(-2px);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  margin: 1rem auto;
+  border: 3px solid #334155;
+  border-top-color: #8b5cf6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

@@ -2,14 +2,16 @@
 import React, { useState, useEffect } from 'react';
 import TwitchStreamCard from './TwitchStreamCard';
 import { FaSearch, FaTwitch, FaFire } from 'react-icons/fa';
+import '../../styles/twitch.css';
+
 
 const StreamsPage = () => {
   const [streams, setStreams] = useState([]);
   const [topStreams, setTopStreams] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');  // ← добавить
   const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false);
-  const [error, setError] = useState(null);
+  const [searching, setSearching] = useState(false);   // ← добавить
+  const [error, setError] = useState(null);            // ← добавить
   const [activeTab, setActiveTab] = useState('top');
 
   const loadTopStreams = async () => {
@@ -24,7 +26,6 @@ const StreamsPage = () => {
       
       const data = await response.json();
       
-      // Проверяем, что данные - массив
       if (Array.isArray(data)) {
         setTopStreams(data);
       } else {
@@ -47,18 +48,19 @@ const StreamsPage = () => {
     setSearching(true);
     setError(null);
     try {
+      // Сначала ищем по названию/игре
       const response = await fetch(`http://localhost:5000/api/twitch/streams/search?q=${encodeURIComponent(searchQuery)}`);
+      let results = await response.json();
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // Если ничего не найдено, ищем по имени канала
+      if (results.length === 0) {
+        const channelResponse = await fetch(`http://localhost:5000/api/twitch/streams/search/channel?q=${encodeURIComponent(searchQuery)}`);
+        results = await channelResponse.json();
       }
       
-      const data = await response.json();
-      
-      if (Array.isArray(data)) {
-        setStreams(data);
+      if (Array.isArray(results)) {
+        setStreams(results);
       } else {
-        console.error('API returned non-array:', data);
         setStreams([]);
         setError('Получены некорректные данные от сервера');
       }
@@ -89,7 +91,7 @@ const StreamsPage = () => {
           <FaSearch className="search-icon" />
           <input
             type="text"
-            placeholder="Поиск стримов по игре или названию..."
+            placeholder="Поиск стримов по игре, названию или имени канала..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />

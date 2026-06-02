@@ -2,7 +2,25 @@
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 export const api = {
-
+  getTwitchToken: async (accessToken) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/twitch-token', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to get Twitch token');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error getting Twitch token:', error);
+      return { has_token: false };
+    }
+  },
   // ==================== РЕПОСТЫ ====================
   async repostPost(token, postId, content = '') {
     const response = await fetch(`${API_URL}/posts/${postId}/repost`, {
@@ -46,7 +64,7 @@ export const api = {
     return result.reposts;
   },
 
-  // ==================== АУТЕНТИФИКАЦИЯ ====================
+   // ==================== АУТЕНТИФИКАЦИЯ ====================
   async register(data) {
     const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
@@ -69,6 +87,41 @@ export const api = {
     return result;
   },
 
+  async getProfile(token) {
+    const response = await fetch(`${API_URL}/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Ошибка получения профиля');
+    return result;
+  },
+
+  // ==================== ХРАНЕНИЕ ТОКЕНА ====================
+  setToken(token) {
+    localStorage.setItem('access_token', token);
+  },
+
+  getToken() {
+    return localStorage.getItem('access_token');
+  },
+
+  removeToken() {
+    localStorage.removeItem('access_token');
+  },
+
+  setUser(user) {
+    localStorage.setItem('user', JSON.stringify(user));
+  },
+
+  getUser() {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  },
+
+  removeUser() {
+    localStorage.removeItem('user');
+  },
+
   // ==================== МЕССЕНДЖЕР ====================
   async getConversations(token) {
     const response = await fetch(`${API_URL}/conversations`, {
@@ -89,15 +142,7 @@ export const api = {
   },
 
   // ==================== ПРОФИЛЬ ====================
-  async getProfile(token) {
-    const response = await fetch(`${API_URL}/profile`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Ошибка получения профиля');
-    return result;
-  },
-
+  
   async getUserById(userId) {
     const response = await fetch(`${API_URL}/profile/${userId}`);
     const result = await response.json();
@@ -320,32 +365,6 @@ export const api = {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Ошибка получения профиля');
     return result;
-  },
-
-  // ==================== ХРАНЕНИЕ ТОКЕНА ====================
-  setToken(token) {
-    localStorage.setItem('access_token', token);
-  },
-
-  getToken() {
-    return localStorage.getItem('access_token');
-  },
-
-  removeToken() {
-    localStorage.removeItem('access_token');
-  },
-
-  setUser(user) {
-    localStorage.setItem('user', JSON.stringify(user));
-  },
-
-  getUser() {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
-  },
-
-  removeUser() {
-    localStorage.removeItem('user');
   }
 };
 
@@ -358,3 +377,4 @@ export const twitchAuth = {
     window.location.href = `${API_URL}/auth/twitch/login`;
   }
 };
+

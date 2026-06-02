@@ -1,30 +1,67 @@
+// src/components/stats/YearlyStats.jsx
 import React, { useState, useEffect } from 'react';
-import { api } from '../../lib/supabase';
-import { FaTrophy, FaClock, FaCalendar, FaFire, FaHeart, FaLaugh, FaThumbsUp } from 'react-icons/fa';
+import { api, twitchAuth } from '../../lib/supabase';
+import { FaTwitch, FaTrophy, FaClock, FaCalendar, FaFire, FaHeart, FaLaugh, FaThumbsUp, FaComment } from 'react-icons/fa';
 import './Stats.css';
 
-const YearlyStats = ({ token }) => {
+const YearlyStats = ({ token, user }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isTwitchConnected, setIsTwitchConnected] = useState(false);  // ← ДОБАВЬ ЭТО!
   const [year, setYear] = useState(new Date().getFullYear());
 
+  // Проверяем, связан ли Twitch аккаунт
   useEffect(() => {
-    loadStats();
-  }, [year]);
+    const checkTwitchStatus = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/twitch-status', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        setIsTwitchConnected(data.connected);
+      } catch (err) {
+        console.error('Error checking Twitch status:', err);
+      }
+    };
+    
+    checkTwitchStatus();
+  }, [token]);
 
-  const loadStats = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`http://localhost:5000/api/stats/yearly?year=${year}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      setStats(data);
-    } catch (err) {
-      console.error('Error loading stats:', err);
-    } finally {
+  useEffect(() => {
+    if (isTwitchConnected) {
+      loadStats();
+    } else {
       setLoading(false);
     }
+  }, [year, isTwitchConnected]);
+
+const loadStats = async () => {
+  setLoading(true);
+  setError(null);
+  try {
+    const response = await fetch(`http://localhost:5000/api/yearly`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    const data = await response.json();
+    console.log('Stats response:', data);  // Добавь лог
+    
+    if (response.ok) {
+      setStats(data);
+    } else {
+      setError(data.error || 'Failed to load stats');
+    }
+  } catch (err) {
+    console.error('Error loading stats:', err);
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const handleConnectTwitch = () => {
+    twitchAuth.login();
   };
 
   const getReactionIcon = (type) => {
@@ -37,19 +74,81 @@ const YearlyStats = ({ token }) => {
     return icons[type] || <FaHeart />;
   };
 
+  // Если загрузка
   if (loading) {
-    return <div className="stats-loading">Загрузка вашей статистики...</div>;
+    return (
+      <div className="stats-container">
+        <div className="stats-header">
+          <h1>🎯 Статистика</h1>
+          <div className="loading-spinner"></div>
+          <p>Загрузка вашей статистики...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Если пользователь не подключил Twitch
+  if (!loading && !isTwitchConnected) {
+    return (
+      <div className="stats-container">
+        <div className="stats-header">
+          <h1>🎯 Статистика</h1>
+          <p>Подключите Twitch, чтобы видеть статистику</p>
+        </div>
+        <div className="stats-empty">
+          <FaTwitch className="empty-icon" />
+          <h3>Подключите ваш Twitch аккаунт</h3>
+          <p>Чтобы собирать статистику просмотров и сообщений в чате</p>
+          <button onClick={handleConnectTwitch} className="btn-twitch-connect">
+            <FaTwitch /> Подключить Twitch
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Если нет данных
+  if (stats && stats.total_stats.total_seconds === 0) {
+    return (
+      <div className="stats-container">
+        <div className="stats-header">
+          <h1>🎯 Статистика</h1>
+          <p>У вас пока нет статистики</p>
+        </div>
+        <div className="stats-empty">
+          <FaTwitch className="empty-icon" />
+          <h3>Смотрите стримы, чтобы собрать статистику!</h3>
+          <p>Ваши просмотры и сообщения будут отображаться здесь</p>
+          <button onClick={() => window.location.href = '/streams'} className="btn-primary">
+            Найти стримы
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="stats-container">
+        <div className="stats-header">
+          <h1>🎯 Статистика</h1>
+          <div className="stats-error">
+            <p>Ошибка загрузки статистики: {error}</p>
+            <button onClick={loadStats} className="retry-btn">Повторить</button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!stats) {
-    return <div className="stats-error">Не удалось загрузить статистику</div>;
+    return null;
   }
 
   return (
     <div className="yearly-stats">
       <div className="stats-header">
-        <h1>🎯 Ваш год на Velad</h1>
-        <p>Итоги {stats.year} года</p>
+        <h1>🎯 Ваша Статистика</h1>
       </div>
 
       {/* Общая статистика */}
@@ -65,50 +164,48 @@ const YearlyStats = ({ token }) => {
           <div className="stat-label">стримеров</div>
         </div>
         <div className="stat-card">
-          <div className="stat-icon"><FaCalendar /></div>
-          <div className="stat-value">{stats.favorite_day}</div>
-          <div className="stat-label">любимый день</div>
+          <div className="stat-icon"><FaComment /></div>
+          <div className="stat-value">{stats.message_stats.total_messages}</div>
+          <div className="stat-label">сообщений в чате</div>
         </div>
       </div>
 
-      {/* Топ стримеры */}
-      <div className="stats-section">
-        <h2>🏆 Ваши любимые стримеры</h2>
-        <div className="top-streamers">
-          {stats.top_streamers.map((streamer, index) => (
-            <div key={streamer.streamer_id} className="streamer-card">
-              <div className="streamer-rank">#{index + 1}</div>
-              <div className="streamer-info">
-                <h3>{streamer.streamer_name}</h3>
-                <p>{Math.round(streamer.watch_time_hours)} часов • {streamer.watch_time_minutes} минут</p>
-              </div>
-              {index === 0 && <div className="crown-badge">👑</div>}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Топ реакции */}
-      {stats.top_reactions.length > 0 && (
+      {/* Топ стримеры по просмотрам */}
+      {stats.top_streamers.length > 0 && (
         <div className="stats-section">
-          <h2>✨ Чаще всего вы использовали</h2>
-          <div className="top-reactions">
-            {stats.top_reactions.map(reaction => (
-              <div key={reaction.reaction_type} className="reaction-card">
-                <div className="reaction-icon">{getReactionIcon(reaction.reaction_type)}</div>
-                <div className="reaction-count">{reaction.total_count}</div>
-                <div className="reaction-type">{reaction.reaction_type}</div>
+          <h2>🏆 Ваши любимые стримеры</h2>
+          <div className="top-streamers">
+            {stats.top_streamers.map((streamer, index) => (
+              <div key={streamer.streamer_id} className="streamer-card">
+                <div className="streamer-rank">#{index + 1}</div>
+                <div className="streamer-info">
+                  <h3>{streamer.streamer_name}</h3>
+                  <p>{Math.round(streamer.watch_hours)} часов • {streamer.watch_minutes} минут</p>
+                </div>
+                {index === 0 && <div className="crown-badge">👑</div>}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Мотивирующее сообщение */}
-      <div className="stats-footer">
-        <p>🎉 Спасибо, что вы с нами!</p>
-        <p className="next-year">Ждём вас в {stats.year + 1} году с новыми стримами!</p>
-      </div>
+      {/* Топ стримеры по сообщениям */}
+      {stats.top_chatters.length > 0 && (
+        <div className="stats-section">
+          <h2>💬 Чаще всего писали в чате</h2>
+          <div className="top-streamers">
+            {stats.top_chatters.map((streamer, index) => (
+              <div key={streamer.streamer_id} className="streamer-card">
+                <div className="streamer-rank">#{index + 1}</div>
+                <div className="streamer-info">
+                  <h3>{streamer.streamer_name}</h3>
+                  <p>{streamer.message_count} сообщений</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,19 +1,27 @@
-// src/components/twitch/TwitchEmbed.jsx
-import React from 'react';
-import '../../styles/twitch.css';
+import React, { useState, useEffect, useRef } from 'react';
+import { api } from '../../lib/supabase';
 
-const TwitchEmbed = ({ channel, layout = 'video', theme = 'dark' }) => {
-  // Встроенный плеер Twitch (не требует API ключа)
+const TwitchEmbed = ({ channel, token }) => {
+  useEffect(() => {
+    // Начать отслеживание когда плеер загрузился
+    startWatching();
+    
+    // Heartbeat каждые 30 секунд
+    const interval = setInterval(() => {
+      sendHeartbeat();
+    }, 30000);
+    
+    return () => {
+      clearInterval(interval);
+      endWatching();
+    };
+  }, []);
+  
   return (
-    <div className="twitch-embed">
-      <iframe
-        src={`https://player.twitch.tv/?channel=${channel}&parent=${window.location.hostname}&autoplay=false`}
-        height="360"
-        width="100%"
-        allowFullScreen
-        title="Twitch Stream"
-      />
-    </div>
+    <iframe
+      src={`https://player.twitch.tv/?channel=${channel}&parent=${window.location.hostname}`}
+      allowFullScreen
+    />
   );
 };
 

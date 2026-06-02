@@ -1,3 +1,5 @@
+/* src/styles/twitch.css */
+
 /* Страница стримов */
 .streams-page {
   max-width: 1200px;
@@ -40,6 +42,11 @@
   font-size: 1rem;
 }
 
+.streams-search input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+
 .streams-search button {
   position: absolute;
   right: 0.5rem;
@@ -51,6 +58,10 @@
   padding: 0.25rem 1rem;
   border-radius: 1.5rem;
   cursor: pointer;
+}
+
+.streams-search button:hover {
+  background: #7c3aed;
 }
 
 .streams-tabs {
@@ -237,58 +248,22 @@
   color: #8b5cf6;
 }
 
-/* Виджет Twitch в профиле */
-.profile-twitch-widget {
-  background: #1e293b;
+/* Ошибки и загрузка */
+.error-message {
+  text-align: center;
+  padding: 2rem;
+  background: rgba(239, 68, 68, 0.1);
   border-radius: 1rem;
-  margin-top: 1rem;
-  overflow: hidden;
+  margin: 1rem 0;
 }
 
-.widget-header {
-  background: #0f172a;
-  padding: 0.75rem 1rem;
-  font-weight: bold;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #334155;
-}
-
-.widget-content {
-  padding: 1rem;
-}
-
-.connect-twitch-btn {
-  background: #9146FF;
+.retry-btn {
+  background: #8b5cf6;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.live-badge-large {
-  background: #ef4444;
-  color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.7rem;
-  display: inline-block;
-  margin-bottom: 0.5rem;
-}
-
-.watch-stream-btn {
-  display: inline-block;
-  background: #9146FF;
-  color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  text-decoration: none;
   margin-top: 0.5rem;
 }
 

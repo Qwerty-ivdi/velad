@@ -10,6 +10,7 @@ import LoadingSpinner from './components/common/LoadingSpinner'
 import SearchPage from './components/search/SearchPage'
 import StreamsPage from './components/twitch/StreamsPage';
 import YearlyStats from './components/stats/YearlyStats';
+import TwitchPlayer from './components/twitch/TwitchPlayer';
 
 
 function App() {
@@ -55,8 +56,11 @@ function App() {
           } />
           <Route path="/streams" element={<StreamsPage />} />
           <Route path="/stats" element={
-  user ? <YearlyStats token={api.getToken()} /> : <Navigate to="/login" />
-} />
+            user ? <YearlyStats token={api.getToken()} /> : <Navigate to="/login" />
+          } />
+          <Route path="/stream/:channel" element={
+            user ? <TwitchPlayer token={api.getToken()} /> : <Navigate to="/login" />
+          } />
         </Routes>
       </div>
     </Router>
