@@ -4,7 +4,7 @@ flask-socketio==5.3.6
 eventlet==0.33.3
 python-dotenv==1.0.0
 supabase==2.5.1
-psycopg>=3.1.0
+psycopg2-binary==2.9.10
 bcrypt==4.1.2
 PyJWT==2.8.0
 requests==2.31.0

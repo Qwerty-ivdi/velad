@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from app.services.db_service import db_service
+from flask_jwt_extended import jwt_required, get_jwt_identity
 import jwt
 import uuid
 from datetime import datetime
@@ -8,46 +9,67 @@ profile_bp = Blueprint('profile', __name__)
 
 
 def get_user_from_token(token):
+    """Декодирует JWT токен и возвращает user_id"""
     try:
-        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        user_id = payload.get('user_id')
-
-        user = db_service.execute_query("""
-            SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, 
-                   u.bio, u.location, u.website, u.created_at,
-                   (SELECT COUNT(*) FROM follows WHERE following_id = u.id) as followers_count,
-                   (SELECT COUNT(*) FROM follows WHERE follower_id = u.id) as following_count
-            FROM users u
-            WHERE u.id = %s
-        """, [user_id], fetch_one=True)
-
-        # Конвертируем UUID в строку
-        if user and 'id' in user:
-            user['id'] = str(user['id'])
-
-        return user
+        import jwt
+        payload = jwt.decode(
+            token,
+            current_app.config['SECRET_KEY'],
+            algorithms=['HS256']
+        )
+        return payload.get('user_id')  # Используем 'user_id', не 'sub'
     except Exception as e:
-        print(f"Token decode error: {e}")
+        print(f"Error decoding token: {e}")
         return None
 
+
 @profile_bp.route('/profile', methods=['GET'])
+@jwt_required()
 def get_profile():
-    """Получение текущего профиля"""
-    auth_header = request.headers.get('Authorization')
+    try:
+        # get_jwt_identity() работает только с токенами от create_access_token
+        # Если вы используете jwt.encode, нужно декодировать вручную
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            import jwt
+            payload = jwt.decode(
+                token,
+                current_app.config['SECRET_KEY'],
+                algorithms=['HS256']
+            )
+            user_id = payload.get('sub')  # Или 'user_id', в зависимости от того, что вы использовали
+        else:
+            return jsonify({'error': 'No token'}), 401
 
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return jsonify({'error': 'Требуется авторизация'}), 401
+        print(f"📡 Getting profile for user: {user_id}")
 
-    token = auth_header.split(' ')[1]
-    user = get_user_from_token(token)
+        user = db_service.execute_query("""
+            SELECT id, email, username, display_name, avatar_url, created_at,
+                   twitch_login, twitch_id
+            FROM users WHERE id = %s
+        """, [user_id], fetch_one=True)
 
-    if not user:
-        return jsonify({'error': 'Неверный токен'}), 401
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
 
-    if user.get('created_at'):
-        user['created_at'] = user['created_at'].isoformat()
 
-    return jsonify(user), 200
+        return jsonify({
+            'id': user.get('id'),
+            'email': user.get('email'),
+            'username': user.get('username'),
+            'display_name': user.get('display_name'),
+            'avatar_url': user.get('avatar_url'),
+            'created_at': user.get('created_at').isoformat() if user.get('created_at') else None,
+            'twitch_login': user.get('twitch_login'),
+            'has_twitch': user.get('twitch_id') is not None
+        }), 200
+
+    except Exception as e:
+        print(f"Error getting profile: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 
 @profile_bp.route('/profile/<user_id>', methods=['GET'])
@@ -317,6 +339,31 @@ def get_followers(user_id):
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+@profile_bp.route('/twitch/status', methods=['GET'])
+def get_twitch_status():
+    """Проверка, подключён ли Twitch аккаунт"""
+    auth_header = request.headers.get('Authorization')
+
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    token = auth_header.split(' ')[1]
+    user = get_user_from_token(token)
+
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    twitch_data = db_service.execute_query(
+        "SELECT twitch_id, twitch_login FROM users WHERE id = %s",
+        [user['id']], fetch_one=True
+    )
+
+    return jsonify({
+        'connected': bool(twitch_data and twitch_data.get('twitch_id')),
+        'twitch_login': twitch_data.get('twitch_login') if twitch_data else None
+    }), 200
 
 
 @profile_bp.route('/users/<user_id>/following', methods=['GET'])

@@ -1,6 +1,8 @@
 from flask import Flask
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager
 from flask_socketio import SocketIO
+from app.routes.stats import stats_bp
 from app.config import Config
 from app.services.db_service import db_service
 from app.routes.auth import auth_bp
@@ -8,22 +10,33 @@ from app.routes.profile import profile_bp
 from app.routes.posts import posts_bp
 from app.routes.messenger import messenger_bp
 from app.socket_handlers import register_socket_handlers
-
-socketio = SocketIO()
+from app.routes.twitch import twitch_bp
+from app.services.twitch_service import twitch_service
+from app.routes.twitch_webhook import twitch_webhook_bp
+from app.routes.user import user_bp
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     app.config['SECRET_KEY'] = Config.SECRET_KEY
+    socketio = SocketIO(app, cors_allowed_origins="*")
 
-    # ====== ВРЕМЕННОЕ РЕШЕНИЕ ДЛЯ CORS ======
-    @app.after_request
-    def after_request(response):
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-        return response
+    # 👈 ТОЛЬКО ЭТО, УБЕРИТЕ @app.after_request
+    CORS(app,
+         origins=['http://localhost:3000', 'http://localhost:3001'],
+         supports_credentials=True,
+         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+         allow_credentials=True)
+
+    # 👈 УДАЛИТЕ ЭТОТ БЛОК - ОН ДУБЛИРУЕТ ЗАГОЛОВКИ!
+    # @app.after_request
+    # def after_request(response):
+    #     response.headers.add('Access-Control-Allow-Origin', '*')
+    #     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    #     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    #     return response
 
     # ========================================
 
@@ -38,9 +51,17 @@ def create_app():
     app.register_blueprint(profile_bp, url_prefix='/api')
     app.register_blueprint(posts_bp, url_prefix='/api')
     app.register_blueprint(messenger_bp, url_prefix='/api')
+    app.register_blueprint(stats_bp, url_prefix='/api')
+    app.register_blueprint(twitch_bp, url_prefix='/api/twitch')
+    app.register_blueprint(twitch_webhook_bp)
+    app.register_blueprint(user_bp, url_prefix='/api')
 
     # Регистрация WebSocket обработчиков
     register_socket_handlers(socketio, db_service)
+    twitch_service.init_app(app)
+
+    # Инициализация JWT
+    jwt = JWTManager(app)
 
     @app.route('/health', methods=['GET'])
     def health_check():

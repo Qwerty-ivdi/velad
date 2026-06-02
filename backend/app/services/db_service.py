@@ -1,8 +1,7 @@
 # app/services/db_service.py
-import psycopg
-from psycopg.rows import dict_row
+import psycopg2
+import psycopg2.extras
 from flask import current_app
-import uuid
 
 
 class DatabaseService:
@@ -14,53 +13,47 @@ class DatabaseService:
         return cls._instance
 
     def init_app(self, app):
-        """Инициализация"""
+        """Инициализация (пока ничего не делает, но нужен для совместимости)"""
         pass
-
-    def _convert_uuid(self, obj):
-        """Рекурсивно конвертирует UUID в строку"""
-        if isinstance(obj, uuid.UUID):
-            return str(obj)
-        if isinstance(obj, dict):
-            return {k: self._convert_uuid(v) for k, v in obj.items()}
-        if isinstance(obj, list):
-            return [self._convert_uuid(item) for item in obj]
-        return obj
 
     def get_connection(self):
         """Получение подключения к БД"""
-        return psycopg.connect(
+        return psycopg2.connect(
             current_app.config['DATABASE_URL'],
-            row_factory=dict_row,
+            cursor_factory=psycopg2.extras.RealDictCursor,
             sslmode='require'
         )
 
-    def execute_query(self, query, params=None, fetch_one=False, fetch_all=False, return_id=False):
-        """
-        Выполнение SQL запроса
-        """
-        conn = self.get_connection()
+    def execute_query(self, query, params=None, fetch_one=False, fetch_all=False):
         try:
-            with conn.cursor() as cur:
-                cur.execute(query, params)
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    # Добавляем отладку
+                    print(f"🔍 Executing query: {query[:100]}...")
+                    print(f"🔍 Params: {params}")
 
-                if return_id:
-                    result = cur.fetchone()
-                    conn.commit()
-                    return self._convert_uuid(result)
-                elif fetch_one:
-                    result = cur.fetchone()
-                    conn.commit()
-                    return self._convert_uuid(result)
-                elif fetch_all:
-                    result = cur.fetchall()
-                    conn.commit()
-                    return self._convert_uuid(result)
-                else:
+                    cur.execute(query, params)
+
+                    if fetch_one:
+                        row = cur.fetchone()
+                        if row:
+                            # RealDictRow уже является словарём
+                            result = dict(row)
+                            print(f"🔍 Result: {result}")
+                            return result
+                        return None
+                    if fetch_all:
+                        rows = cur.fetchall()
+                        if rows:
+                            result = [dict(row) for row in rows]
+                            print(f"🔍 Result count: {len(result)}")
+                            return result
+                        return []
                     conn.commit()
                     return cur.rowcount
-        finally:
-            conn.close()
+        except Exception as e:
+            print(f"Database error: {e}")
+            raise
 
 
 db_service = DatabaseService()
