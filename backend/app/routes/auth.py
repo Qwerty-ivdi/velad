@@ -4,6 +4,7 @@ import jwt
 import secrets
 import re
 import requests
+import os
 from urllib.parse import urlencode
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, current_app, redirect, session
@@ -114,8 +115,6 @@ def login():
         if not bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
             return jsonify({'error': 'Неверный email или пароль'}), 401
 
-        # Используем стандартный jwt.encode
-        import jwt
         token = jwt.encode(
             {
                 'sub': user['id'],
@@ -146,17 +145,25 @@ def login():
 
 # ==================== TWITCH OAuth ====================
 
+def get_frontend_url():
+    """Получить URL фронтенда из переменной окружения"""
+    return os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+
+
+def get_backend_url():
+    """Получить URL бэкенда из переменной окружения"""
+    return os.environ.get('BACKEND_URL', 'http://localhost:5000')
+
+
 @auth_bp.route('/twitch/login', methods=['GET'])
 def twitch_login():
     """Начало OAuth авторизации через Twitch"""
     state = secrets.token_urlsafe(32)
     session['twitch_oauth_state'] = state
 
-    host_url = request.host_url.rstrip('/')
-    if 'localhost' in host_url or '127.0.0.1' in host_url:
-        redirect_uri = "http://localhost:5000/api/auth/twitch/callback"
-    else:
-        redirect_uri = f"{host_url}/api/auth/twitch/callback"
+    # Определяем redirect_uri в зависимости от окружения
+    backend_url = get_backend_url()
+    redirect_uri = f"{backend_url}/api/auth/twitch/callback"
 
     params = {
         'client_id': current_app.config['TWITCH_CLIENT_ID'],
@@ -167,6 +174,7 @@ def twitch_login():
     }
 
     auth_url = f"https://id.twitch.tv/oauth2/authorize?{urlencode(params)}"
+    print(f"🔐 Twitch auth URL: {auth_url}")
     return redirect(auth_url)
 
 
@@ -202,18 +210,21 @@ def twitch_callback():
     print("=" * 60)
 
     if error:
-        return redirect("http://localhost:3000/login?error=twitch_auth_failed")
+        frontend_url = get_frontend_url()
+        return redirect(f"{frontend_url}/login?error=twitch_auth_failed")
 
     if not code:
         return jsonify({'error': 'No code provided'}), 400
 
     saved_state = session.pop('twitch_oauth_state', None)
     if not saved_state or saved_state != state:
-        return redirect("http://localhost:3000/login?error=invalid_state")
+        frontend_url = get_frontend_url()
+        return redirect(f"{frontend_url}/login?error=invalid_state")
 
     # Обмен кода на токены
     token_url = "https://id.twitch.tv/oauth2/token"
-    redirect_uri = "http://localhost:5000/api/auth/twitch/callback"
+    backend_url = get_backend_url()
+    redirect_uri = f"{backend_url}/api/auth/twitch/callback"
 
     token_data = {
         'client_id': current_app.config['TWITCH_CLIENT_ID'],
@@ -226,7 +237,8 @@ def twitch_callback():
     token_response = requests.post(token_url, data=token_data)
 
     if token_response.status_code != 200:
-        return redirect("http://localhost:3000/login?error=token_exchange_failed")
+        frontend_url = get_frontend_url()
+        return redirect(f"{frontend_url}/login?error=token_exchange_failed")
 
     tokens = token_response.json()
     access_token = tokens.get('access_token')
@@ -238,7 +250,8 @@ def twitch_callback():
     # Получаем информацию о пользователе
     user_info = get_twitch_user_info(access_token)
     if not user_info:
-        return redirect("http://localhost:3000/login?error=no_user_info")
+        frontend_url = get_frontend_url()
+        return redirect(f"{frontend_url}/login?error=no_user_info")
 
     twitch_id = user_info['id']
     twitch_login = user_info['login']
@@ -249,48 +262,16 @@ def twitch_callback():
     print(f"✅ Twitch user: {twitch_login} ({email})")
     print(f"✅ Twitch ID: {twitch_id}")
 
-    # ========== ОТЛАДОЧНЫЙ ВЫВОД ==========
-    print("\n" + "=" * 60)
-    print("🔍 ОТЛАДКА: ПРОВЕРКА РЕЗУЛЬТАТА ЗАПРОСА")
-    print("=" * 60)
-
-    # Делаем запрос для поиска пользователя
-    result = db_service.execute_query(
-        "SELECT id FROM users WHERE twitch_id = %s OR email = %s",
-        [twitch_id, email], fetch_one=True
-    )
-
-    print(f"🔍 RAW result: {result}")
-    print(f"🔍 Result type: {type(result)}")
-
-    if result and isinstance(result, dict):
-        print(f"🔍 Result keys: {list(result.keys())}")
-        user_id_from_db = result.get('id')
-        print(f"🔍 User ID from result: {user_id_from_db}")
-        print(f"🔍 User ID type: {type(user_id_from_db)}")
-    else:
-        print("🔍 Result is NOT a dictionary!")
-        print(f"🔍 Result value: {result}")
-
-    print("=" * 60 + "\n")
-
-    # Ищем пользователя (оригинальный код)
+    # Ищем пользователя
     user = db_service.execute_query(
         "SELECT * FROM users WHERE twitch_id = %s OR email = %s",
         [twitch_id, email], fetch_one=True
     )
 
-    print(f"📡 Existing user found: {user is not None}")
-    if user:
-        print(f"📡 User type: {type(user)}")
-        print(f"📡 User content: {user}")
-        print(f"📡 User ID from DB: {user.get('id') if isinstance(user, dict) else 'Not a dict'}")
-
     if user and isinstance(user, dict):
         user_id = user.get('id')
-        print(f"📡 Using user_id: {user_id}")
+        print(f"📡 Using existing user_id: {user_id}")
 
-        # Обновляем существующего пользователя
         db_service.execute_query("""
             UPDATE users 
             SET twitch_access_token = %s, 
@@ -303,7 +284,6 @@ def twitch_callback():
         """, [access_token, refresh_token, twitch_login, avatar_url, user_id])
         print(f"✅ Updated user {twitch_login}")
     else:
-        # Создаём нового пользователя
         user_id = str(uuid.uuid4())
         db_service.execute_query("""
             INSERT INTO users (id, email, username, display_name, password_hash,
@@ -316,7 +296,6 @@ def twitch_callback():
         print(f"✅ Created new user {twitch_login}")
 
     # Генерируем JWT
-    import jwt
     jwt_token = jwt.encode(
         {
             'sub': user_id,
@@ -327,9 +306,11 @@ def twitch_callback():
     )
 
     print(f"🔑 Generated token: {jwt_token[:50]}...")
-    print("✅ Redirecting to frontend")
 
-    return redirect(f"http://localhost:3000/auth/callback?access_token={jwt_token}")
+    frontend_url = get_frontend_url()
+    print(f"✅ Redirecting to frontend: {frontend_url}/auth/callback")
+
+    return redirect(f"{frontend_url}/auth/callback?access_token={jwt_token}")
 
 
 @auth_bp.route('/twitch/token', methods=['GET'])
