@@ -10,53 +10,48 @@ const CreatePost = ({ token, onPostCreated }) => {
   const [error, setError] = useState(null);
 
   const handleImageUpload = async (e) => {
-  const files = Array.from(e.target.files);
-  if (files.length === 0) return;
-  
-  setUploading(true);
-  setError(null);
-  
-  console.log('📸 Uploading files:', files.length);
-  console.log('🔑 Token exists:', !!token);
-  
-  try {
-    const uploadedUrls = [];
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
     
-    for (const file of files) {
+    setUploading(true);
+    setError(null);
+    
+    console.log('📸 Uploading file:', files[0].name);
+    console.log('🔑 Token exists:', !!token);
+    console.log('🌐 API_URL:', API_URL);
+    
+    try {
       const formData = new FormData();
-      formData.append('file', file);
-      
-      console.log(`📤 Uploading ${file.name} to ${API_URL}/upload`);
+      formData.append('file', files[0]);
       
       const response = await fetch(`${API_URL}/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
+          // НЕ ставьте Content-Type, браузер сам установит multipart/form-data
         },
         body: formData
       });
       
-      console.log('📡 Upload response status:', response.status);
+      console.log('📡 Response status:', response.status);
       
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Upload error:', errorData);
+        console.error('Upload error response:', errorData);
         throw new Error(errorData.error || `Upload failed: ${response.status}`);
       }
       
       const data = await response.json();
       console.log('✅ Upload success:', data);
-      uploadedUrls.push(data.url);
+      setImages(prev => [...prev, data.url]);
+      
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError(err.message);
+    } finally {
+      setUploading(false);
     }
-    
-    setImages(prev => [...prev, ...uploadedUrls]);
-  } catch (err) {
-    console.error('Upload error:', err);
-    setError(err.message);
-  } finally {
-    setUploading(false);
-  }
-};
+  };
 
   const removeImage = (index) => {
     setImages(prev => prev.filter((_, i) => i !== index));
