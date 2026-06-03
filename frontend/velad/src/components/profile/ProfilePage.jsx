@@ -7,6 +7,7 @@ import CreatePost from '../posts/CreatePost';
 import Messenger from '../messenger/Messenger';
 import UserListItem from '../users/UserListItem';
 import LoadingSpinner from '../common/LoadingSpinner';
+import ProfileHeader from './ProfileHeader';
 import { FaEdit, FaEnvelope } from 'react-icons/fa';
 import cache from '../../lib/cache';
 import '../../styles/global.css';
@@ -113,6 +114,13 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
         profileData = await api.getUserById(profileId);
       }
       
+      console.log('📊 Profile loaded:', {
+        id: profileData.id,
+        display_name: profileData.display_name,
+        is_following: profileData.is_following,
+        followers_count: profileData.followers_count
+      });
+      
       setProfile(profileData);
       cache.setProfile(profileId, profileData);
       setEditForm({
@@ -213,12 +221,21 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
       const token = api.getToken();
       if (profile?.is_following) {
         await api.unfollowUser(token, profileId);
-        setProfile(prev => ({ ...prev, is_following: false, followers_count: (prev.followers_count || 0) - 1 }));
+        setProfile(prev => ({ 
+          ...prev, 
+          is_following: false, 
+          followers_count: (prev.followers_count || 0) - 1 
+        }));
+        cache.invalidateProfile(profileId);
       } else {
         await api.followUser(token, profileId);
-        setProfile(prev => ({ ...prev, is_following: true, followers_count: (prev.followers_count || 0) + 1 }));
+        setProfile(prev => ({ 
+          ...prev, 
+          is_following: true, 
+          followers_count: (prev.followers_count || 0) + 1 
+        }));
+        cache.invalidateProfile(profileId);
       }
-      cache.invalidateProfile(profileId);
     } catch (err) {
       console.error('Error following/unfollowing:', err);
     }
@@ -253,57 +270,15 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
 
   return (
     <div className="profile-container">
-      <div className="profile-header">
-        <div className="profile-avatar">
-          <img 
-            src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.display_name}&background=9146FF&color=fff&size=128`}
-            alt={profile.display_name}
-          />
-        </div>
-        <div className="profile-info">
-          <h1>{profile.display_name}</h1>
-          <p>@{profile.username}</p>
-          {profile.bio && <p className="profile-bio">{profile.bio}</p>}
-          <div className="profile-stats">
-            <div className="stat-item">
-              <span className="stat-value">{profile.followers_count || 0}</span>
-              <span className="stat-label">подписчиков</span>
-            </div>
-            <div className="stat-divider">•</div>
-            <div className="stat-item">
-              <span className="stat-value">{profile.following_count || 0}</span>
-              <span className="stat-label">подписок</span>
-            </div>
-            <div className="stat-divider">•</div>
-            <div className="stat-item">
-              <span className="stat-value">{posts.length + reposts.length}</span>
-              <span className="stat-label">постов</span>
-            </div>
-          </div>
-          <div className="profile-actions">
-            {isOwnProfile ? (
-              <button onClick={() => setIsEditing(true)} className="btn-edit">
-                <FaEdit /> Редактировать
-              </button>
-            ) : (
-              <>
-                <button 
-                  className={`btn-follow ${profile.is_following ? 'following' : ''}`}
-                  onClick={handleFollow}
-                >
-                  {profile.is_following ? 'Отписаться' : 'Подписаться'}
-                </button>
-                <button 
-                  className="btn-message"
-                  onClick={() => setShowMessenger(true)}
-                >
-                  <FaEnvelope /> Написать
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      <ProfileHeader 
+        profile={profile}
+        isOwnProfile={isOwnProfile}
+        isFollowing={profile.is_following}
+        followersCount={profile.followers_count}
+        followingCount={profile.following_count}
+        onFollow={handleFollow}
+        onEdit={() => setIsEditing(true)}
+      />
 
       {isOwnProfile && (
         <CreatePost 
