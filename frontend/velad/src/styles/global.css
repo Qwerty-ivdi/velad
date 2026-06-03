@@ -1760,3 +1760,42 @@ body {
     height: 120px;
   }
 }
+
+/* Статистика профиля */
+.profile-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin: 1rem 0;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: white;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #a0a0b0;
+}
+
+.stat-divider {
+  color: #a0a0b0;
+}
+
+/* Адаптация под скролл */
+body {
+  padding-top: 70px;
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-top: 60px;
+  }
+}
