@@ -5,7 +5,7 @@ import { FaTwitch, FaCalendar, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
 const ProfileHeader = ({ 
   profile, 
   isOwnProfile, 
-  isFollowing,  // 👈 ИСПОЛЬЗУЕМ ПРЯМО ИЗ ПРОПСОВ
+  isFollowing, 
   followersCount, 
   followingCount, 
   onFollow, 
@@ -93,12 +93,12 @@ const ProfileHeader = ({
             </button>
           ) : (
             <>
-              <button 
-                onClick={onFollow}
-                className={`btn-follow ${isFollowing ? 'following' : ''}`}
-              >
-                {isFollowing ? 'Отписаться' : 'Подписаться'}
-              </button>
+               <button 
+                  onClick={onFollow}
+                  className={`btn-follow ${isFollowing ? 'following' : ''}`}
+                >
+                  {isFollowing ? 'Отписаться' : 'Подписаться'}
+                </button>
               <button className="btn-message">Написать</button>
             </>
           )}

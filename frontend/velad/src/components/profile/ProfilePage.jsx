@@ -216,27 +216,40 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
     }
   };
 
-  // ========== ПОДПИСКА/ОТПИСКА ==========
-  const handleFollow = async () => {
-      if (isCurrentUser) return;
-      
-      try {
-        if (isFollowing) {
-          await api.unfollowUser(token, user.id);
-          setIsFollowing(false);
-          setFollowersCount(prev => prev - 1);
-          if (onFollowChange) onFollowChange(user.id, false);
-        } else {
-          await api.followUser(token, user.id);
-          setIsFollowing(true);
-          setFollowersCount(prev => prev + 1);
-          if (onFollowChange) onFollowChange(user.id, true);
-        }
-      } catch (err) {
-        console.error('Follow error:', err);
-      }
-    };
-  
+// ========== ПОДПИСКА/ОТПИСКА ==========
+const handleFollow = async () => {
+  try {
+    const token = api.getToken();
+    const wasFollowing = profile?.is_following;
+    
+    setProfile(prev => ({ 
+      ...prev, 
+      is_following: !wasFollowing,
+      followers_count: (prev.followers_count || 0) + (wasFollowing ? -1 : 1)
+    }));
+    
+    // Обновляем кэш
+    cache.invalidateProfile(profileId);
+    
+    if (wasFollowing) {
+      await api.unfollowUser(token, profileId);
+    } else {
+      await api.followUser(token, profileId);
+    }
+    
+    // Дополнительно обновляем списки подписчиков/подписок
+    loadFollowers();
+    loadFollowing();
+    
+  } catch (err) {
+    setProfile(prev => ({ 
+      ...prev, 
+      is_following: !prev.is_following,
+      followers_count: (prev.followers_count || 0) + (prev.is_following ? 1 : -1)
+    }));
+    console.error('Error following/unfollowing:', err);
+  }
+};
 
   // ========== EFFECTS ==========
   // Загрузка профиля, постов и репостов
@@ -268,14 +281,14 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
   return (
     <div className="profile-container">
       <ProfileHeader 
-        profile={profile}
-        isOwnProfile={isOwnProfile}
-        isFollowing={profile.is_following}
-        followersCount={profile.followers_count}
-        followingCount={profile.following_count}
-        onFollow={handleFollow}
-        onEdit={() => setIsEditing(true)}
-      />
+    profile={profile}
+    isOwnProfile={isOwnProfile}
+    isFollowing={profile.is_following}
+    followersCount={profile.followers_count}
+    followingCount={profile.following_count}
+    onFollow={handleFollow}
+    onEdit={() => setIsEditing(true)}
+  />
 
       {isOwnProfile && (
         <CreatePost 
