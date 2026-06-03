@@ -1,4 +1,5 @@
-import React from 'react';
+// src/components/profile/ProfileHeader.jsx
+import React, { useEffect } from 'react';
 import { FaTwitch, FaCalendar, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
 
 const ProfileHeader = ({ 
@@ -18,6 +19,12 @@ const ProfileHeader = ({
       day: 'numeric'
     });
   };
+
+  // Отладка
+  useEffect(() => {
+    console.log('ProfileHeader - isFollowing:', isFollowing);
+    console.log('ProfileHeader - profile.id:', profile?.id);
+  }, [isFollowing, profile]);
 
   return (
     <div className="profile-header">

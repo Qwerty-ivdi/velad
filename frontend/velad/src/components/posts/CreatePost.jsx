@@ -1,15 +1,13 @@
 // src/components/posts/CreatePost.jsx
-import React, { useState, useRef } from 'react';
-import { FaImage, FaTimes, FaSpinner } from 'react-icons/fa';
-import { api } from '../../lib/supabase';
+import React, { useState } from 'react';
+import { FaImage, FaTimes } from 'react-icons/fa';
+import { API_URL } from '../../config';
 
 const CreatePost = ({ token, onPostCreated }) => {
   const [content, setContent] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
-  const [images, setImages] = useState([]);
-  const fileInputRef = useRef(null);
 
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -18,89 +16,122 @@ const CreatePost = ({ token, onPostCreated }) => {
     setUploading(true);
     setError(null);
     
-    for (const file of files) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError(`Файл ${file.name} слишком большой (макс. 5MB)`);
-        continue;
-      }
-      if (!file.type.startsWith('image/')) {
-        setError(`Файл ${file.name} не является изображением`);
-        continue;
-      }
+    try {
+      const uploadedUrls = [];
       
-      try {
+      for (const file of files) {
         const formData = new FormData();
         formData.append('file', file);
-        const response = await fetch('http://localhost:5000/api/upload', {
+        
+        // ИСПРАВЛЕНО: используем API_URL из конфига
+        const response = await fetch(`${API_URL}/upload`, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
           body: formData
         });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || 'Ошибка загрузки');
-        setImages(prev => [...prev, result.url]);
-      } catch (err) {
-        setError(err.message);
+        
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        uploadedUrls.push(data.url);
       }
+      
+      setImages(prev => [...prev, ...uploadedUrls]);
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError(err.message);
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const removeImage = (index) => {
-    setImages(images.filter((_, i) => i !== index));
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!content.trim() && images.length === 0) return;
-    setLoading(true);
+    
+    setUploading(true);
     setError(null);
+    
     try {
-      const post = await api.createPost(token, {
-        content: content.trim(),
-        post_type: images.length > 0 ? 'image' : 'text',
-        media_urls: images
+      const response = await fetch(`${API_URL}/posts`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          content: content.trim(),
+          media_urls: images,
+          post_type: images.length > 0 ? 'image' : 'text'
+        })
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create post');
+      }
+      
+      const newPost = await response.json();
       setContent('');
       setImages([]);
-      if (onPostCreated) onPostCreated(post);
+      if (onPostCreated) onPostCreated(newPost);
     } catch (err) {
+      console.error('Create post error:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
 
   return (
-    <div className="create-post-card">
+    <div className="create-post">
       <form onSubmit={handleSubmit}>
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Что нового? Поделись мыслями..."
           rows="3"
-          disabled={loading || uploading}
         />
         
         {images.length > 0 && (
-          <div className="image-preview">
-            {images.map((img, i) => (
-              <div key={i} className="image-preview-item">
-                <img src={`http://localhost:5000${img}`} alt="" />
-                <button type="button" onClick={() => removeImage(i)}><FaTimes /></button>
+          <div className="image-preview-list">
+            {images.map((url, index) => (
+              <div key={index} className="image-preview">
+                <img src={url} alt={`preview-${index}`} />
+                <button type="button" onClick={() => removeImage(index)}>
+                  <FaTimes />
+                </button>
               </div>
             ))}
           </div>
         )}
         
         <div className="create-post-actions">
-          <button type="button" className="attach-btn" onClick={() => fileInputRef.current?.click()} disabled={loading || uploading}>
-            {uploading ? <FaSpinner className="spinning" /> : <FaImage />} {uploading ? 'Загрузка...' : 'Фото'}
-          </button>
-          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} />
-          <button type="submit" disabled={loading || uploading || (!content.trim() && images.length === 0)}>
-            {loading ? 'Публикация...' : 'Опубликовать'}
+          <label className="image-upload-btn">
+            <FaImage />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImageUpload}
+              disabled={uploading}
+              style={{ display: 'none' }}
+            />
+          </label>
+          
+          <button 
+            type="submit" 
+            disabled={uploading || (!content.trim() && images.length === 0)}
+            className="create-post-btn"
+          >
+            {uploading ? 'Публикация...' : 'Опубликовать'}
           </button>
         </div>
         
