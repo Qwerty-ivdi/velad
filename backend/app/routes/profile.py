@@ -61,7 +61,8 @@ def get_profile():
             'has_twitch': user.get('twitch_id') is not None,
             'followers_count': user.get('followers_count', 0),
             'following_count': user.get('following_count', 0),
-            'posts_count': user.get('posts_count', 0)
+            'posts_count': user.get('posts_count', 0),
+            'is_following': False  # Для своего профиля всегда false
         }), 200
 
     except Exception as e:
@@ -95,13 +96,28 @@ def get_profile_by_id(user_id):
 
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1]
-            current_user = get_user_from_token(token)
-            if current_user and current_user.get('id') != user_id:
-                follow_check = db_service.execute_query(
-                    "SELECT id FROM follows WHERE follower_id = %s AND following_id = %s",
-                    [current_user.get('id'), user_id], fetch_one=True
+            try:
+                import jwt
+                payload = jwt.decode(
+                    token,
+                    current_app.config['SECRET_KEY'],
+                    algorithms=['HS256']
                 )
-                is_following = follow_check is not None
+                current_user_id = payload.get('sub')
+
+                print(f"🔍 Current user ID: {current_user_id}")
+                print(f"🔍 Target user ID: {user_id}")
+
+                if current_user_id and current_user_id != user_id:
+                    follow_check = db_service.execute_query(
+                        "SELECT id FROM follows WHERE follower_id = %s AND following_id = %s",
+                        [current_user_id, user_id], fetch_one=True
+                    )
+                    is_following = follow_check is not None
+                    print(f"🔍 Follow check result: {follow_check}")
+                    print(f"🔍 is_following: {is_following}")
+            except Exception as e:
+                print(f"Error decoding token: {e}")
 
         result = {
             'id': user.get('id'),
@@ -116,9 +132,10 @@ def get_profile_by_id(user_id):
             'followers_count': user.get('followers_count', 0),
             'following_count': user.get('following_count', 0),
             'posts_count': user.get('posts_count', 0),
-            'is_following': is_following
+            'is_following': is_following  # 👈 УБЕДИТЕСЬ, ЧТО ЭТА СТРОЧКА ЕСТЬ!
         }
 
+        print(f"🔍 Final result: {result}")
         return jsonify(result), 200
 
     except Exception as e:
