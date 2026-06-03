@@ -37,10 +37,10 @@ def get_frontend_url():
 def get_backend_url():
     """Получить URL бэкенда из переменной окружения"""
     url = os.environ.get('BACKEND_URL')
+    print(f"🔍 BACKEND_URL env: {url}")  # ОТЛАДКА
     if url:
         return url.rstrip('/')
-    # Fallback для Railway
-    return 'https://velad-production.up.railway.app'
+    return 'https://velad-production.up.railway.app'  # Жёсткое значение
 
 
 # ==================== EMAIL/ПАРОЛЬ РЕГИСТРАЦИЯ ====================
