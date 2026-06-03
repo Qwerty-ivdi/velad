@@ -105,37 +105,33 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
   };
 
   const fetchProfileInBackground = async () => {
-    try {
-      const token = api.getToken();
-      let profileData;
-      
-      if (isOwnProfile) {
-        profileData = await api.getProfile(token);
-      } else {
-        profileData = await api.getUserById(profileId);
-      }
-      
-      console.log('📊 Profile loaded:', {
-        id: profileData.id,
-        display_name: profileData.display_name,
-        is_following: profileData.is_following,
-        followers_count: profileData.followers_count
-      });
-      
-      setProfile(profileData);
-      cache.setProfile(profileId, profileData);
-      setEditForm({
-        display_name: profileData.display_name || '',
-        bio: profileData.bio || '',
-        location: profileData.location || '',
-        website: profileData.website || ''
-      });
-    } catch (err) {
-      console.error('Error fetching profile:', err);
-    } finally {
-      setLoading(false);
+  try {
+    const token = api.getToken();
+    let profileData;
+    
+    if (isOwnProfile) {
+      profileData = await api.getProfile(token);
+    } else {
+      profileData = await api.getUserById(profileId);
     }
-  };
+    
+    console.log('🔄 Profile refreshed:', profileData);
+    console.log('🔄 is_following:', profileData.is_following);
+    
+    setProfile(profileData);
+    cache.setProfile(profileId, profileData);
+    setEditForm({
+      display_name: profileData.display_name || '',
+      bio: profileData.bio || '',
+      location: profileData.location || '',
+      website: profileData.website || ''
+    });
+  } catch (err) {
+    console.error('Error fetching profile:', err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ========== ЗАГРУЗКА ПОСТОВ ==========
   const loadPosts = async () => {
