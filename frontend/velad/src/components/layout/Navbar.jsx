@@ -1,7 +1,7 @@
 // src/components/common/Navbar.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FaSearch, FaTv, FaChartBar, FaEnvelope, FaSignOutAlt, FaTwitch } from 'react-icons/fa';
+import { FaSearch, FaTv, FaChartBar, FaEnvelope, FaSignOutAlt, FaTwitch, FaUserPlus } from 'react-icons/fa';
 
 const Navbar = ({ user, onLogout, onOpenMessenger }) => {
   const navigate = useNavigate();
@@ -69,9 +69,15 @@ const Navbar = ({ user, onLogout, onOpenMessenger }) => {
               </button>
             </>
           ) : (
-            <button onClick={() => navigate('/login')} className="login-btn">
-              Войти
-            </button>
+            <div className="auth-buttons">
+              <button onClick={() => navigate('/login')} className="login-btn">
+                Войти
+              </button>
+              <button onClick={() => navigate('/register')} className="register-btn">
+                <FaUserPlus />
+                <span>Регистрация</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
