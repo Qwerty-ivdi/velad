@@ -251,9 +251,20 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
           <p>@{profile.username}</p>
           {profile.bio && <p className="profile-bio">{profile.bio}</p>}
           <div className="profile-stats">
-            <span>📊 {profile.followers_count || 0} подписчиков</span>
-            <span>📌 {profile.following_count || 0} подписок</span>
-            <span>📝 {(posts.length + reposts.length)} постов</span>
+            <div className="stat-item">
+              <span className="stat-value">{profile.followers_count || 0}</span>
+              <span className="stat-label">подписчиков</span>
+            </div>
+            <div className="stat-divider">•</div>
+            <div className="stat-item">
+              <span className="stat-value">{profile.following_count || 0}</span>
+              <span className="stat-label">подписок</span>
+            </div>
+            <div className="stat-divider">•</div>
+            <div className="stat-item">
+              <span className="stat-value">{posts.length + reposts.length}</span>
+              <span className="stat-label">постов</span>
+            </div>
           </div>
           <div className="profile-actions">
             {isOwnProfile ? (

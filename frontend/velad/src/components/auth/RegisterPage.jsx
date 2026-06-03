@@ -42,7 +42,7 @@ const RegisterPage = ({ setUser }) => {
 
     try {
       // Регистрация
-      const result = await api.register({
+      await api.register({
         email: formData.email,
         password: formData.password,
         username: formData.username,

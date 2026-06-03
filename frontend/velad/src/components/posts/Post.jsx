@@ -31,19 +31,18 @@ const Post = ({ post, token, isOwnPost = false, currentUserId, onPostUpdate, onP
   };
 
   const handleLike = async () => {
-  if (loading) return;
-  setLoading(true);
   try {
-    await api.likePost(token, post.id);
-    const newLiked = result.action === 'liked';
-    const newLikesCount = result.likes_count;
-    setLiked(newLiked);
-    setLikesCount(newLikesCount);
-    if (onLikeUpdate) onLikeUpdate(post.id, newLiked, newLikesCount);
+    const result = await api.likePost(token, post.id);
+    if (result && result.action) {
+      // Инвертируем состояние на основе результата от API
+      onLikeUpdate?.(post.id, result.action === 'liked', result.likes_count);
+    } else if (result && typeof result.likes_count !== 'undefined') {
+      // Если API возвращает только likes_count
+      const newIsLiked = !post.is_liked;
+      onLikeUpdate?.(post.id, newIsLiked, result.likes_count);
+    }
   } catch (err) {
-    console.error('Like error:', err);
-  } finally {
-    setLoading(false);
+    console.error('Error liking post:', err);
   }
 };
 
