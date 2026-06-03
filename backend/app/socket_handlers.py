@@ -1,6 +1,5 @@
 # app/socket_handlers.py
-from flask import request
-from flask_socketio import emit, join_room, leave_room
+from flask_socketio import emit, join_room
 from flask_jwt_extended import decode_token
 from datetime import datetime
 import uuid
@@ -8,26 +7,22 @@ import uuid
 
 def register_socket_handlers(socketio, db_service):
     @socketio.on('connect')
-    def handle_connect(data=None):
-        """Клиент подключился"""
-        print(f"🔌 Client connected: {request.sid}")
+    def handle_connect():
+        print(f"🔌 Client connected")
         emit('connected', {'message': 'Connected to server'})
 
     @socketio.on('disconnect')
     def handle_disconnect():
-        """Клиент отключился"""
-        print(f"🔌 Client disconnected: {request.sid}")
+        print(f"🔌 Client disconnected")
 
     @socketio.on('authenticate')
     def handle_authenticate(data):
-        """Аутентификация клиента"""
         token = data.get('token')
         if not token:
             emit('auth_error', {'error': 'No token provided'})
             return
 
         try:
-            # Декодируем JWT
             payload = decode_token(token)
             user_id = payload.get('sub')
 
@@ -35,18 +30,15 @@ def register_socket_handlers(socketio, db_service):
                 emit('auth_error', {'error': 'Invalid token'})
                 return
 
-            # Присоединяем к комнате пользователя
             join_room(user_id)
-
             print(f"✅ User {user_id} authenticated")
             emit('authenticated', {'user_id': user_id})
         except Exception as e:
-            print(f"❌ Authentication error: {e}")
+            print(f"❌ Auth error: {e}")
             emit('auth_error', {'error': str(e)})
 
     @socketio.on('send_message')
     def handle_send_message(data):
-        """Отправка сообщения"""
         try:
             token = data.get('token')
             receiver_id = data.get('receiver_id')
@@ -56,7 +48,6 @@ def register_socket_handlers(socketio, db_service):
                 emit('error', {'error': 'Missing fields'})
                 return
 
-            # Декодируем токен
             payload = decode_token(token)
             sender_id = payload.get('sub')
 
@@ -64,13 +55,10 @@ def register_socket_handlers(socketio, db_service):
                 emit('error', {'error': 'Invalid token'})
                 return
 
-            print(f"📨 Sending message from {sender_id} to {receiver_id}: {content}")
-
-            # Сохраняем в БД
+            # Сохраняем сообщение
             message_id = uuid.uuid4()
             now = datetime.now()
 
-            # Находим или создаем диалог
             conv = db_service.execute_query("""
                 SELECT id FROM conversations 
                 WHERE (participant1_id = %s AND participant2_id = %s)
@@ -87,20 +75,17 @@ def register_socket_handlers(socketio, db_service):
             else:
                 conversation_id = conv['id']
 
-            # Сохраняем сообщение
             db_service.execute_query("""
                 INSERT INTO messages (id, conversation_id, sender_id, content, created_at)
                 VALUES (%s, %s, %s, %s, %s)
             """, [str(message_id), conversation_id, sender_id, content, now])
 
-            # Обновляем последнее сообщение
             db_service.execute_query("""
                 UPDATE conversations 
                 SET last_message = %s, last_message_at = %s 
                 WHERE id = %s
             """, [content, now, conversation_id])
 
-            # Получаем данные отправителя
             sender_data = db_service.execute_query(
                 "SELECT id, username, display_name, avatar_url FROM users WHERE id = %s",
                 [sender_id], fetch_one=True
@@ -117,15 +102,9 @@ def register_socket_handlers(socketio, db_service):
                 'sender_avatar_url': sender_data.get('avatar_url')
             }
 
-            # Отправляем получателю
             emit('new_message', message_data, room=receiver_id)
-            # Подтверждаем отправителю
             emit('message_sent', message_data, room=sender_id)
 
-            print(f"✅ Message sent")
-
         except Exception as e:
-            print(f"❌ Error sending message: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"❌ Error: {e}")
             emit('error', {'error': str(e)})
