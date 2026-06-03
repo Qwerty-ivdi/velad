@@ -10,6 +10,7 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import ProfileHeader from './ProfileHeader';
 import { FaEdit, FaEnvelope } from 'react-icons/fa';
 import cache from '../../lib/cache';
+import '../../styles/ProfileHeader.css';
 import '../../styles/global.css';
 
 const ProfilePage = ({ user: currentUser, setUser }) => {
