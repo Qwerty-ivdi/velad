@@ -371,6 +371,8 @@ export const api = {
 // ==================== TWITCH AUTH ====================
 export const twitchAuth = {
   login: () => {
+    const url = `${API_URL}/auth/twitch/login`;
+    console.log('🔍 LOGIN URL:', url);
     window.location.href = `${API_URL}/auth/twitch/login`;
   },
   register: () => {
