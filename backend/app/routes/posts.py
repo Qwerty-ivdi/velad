@@ -34,18 +34,15 @@ def get_upload_folder():
 
 @posts_bp.route('/upload', methods=['POST'])
 def upload_image():
-    """Загрузка изображения"""
+    """Загрузка изображения — сохраняем как base64"""
     print("=" * 50)
     print("🔥 UPLOAD IMAGE CALLED")
 
     auth_header = request.headers.get('Authorization')
-    print(f"🔍 Auth header: {auth_header[:50] if auth_header else 'None'}...")
-
     if not auth_header or not auth_header.startswith('Bearer '):
         return jsonify({'error': 'Требуется авторизация'}), 401
 
     token = auth_header.split(' ')[1]
-    print(f"🔍 Token: {token[:50]}...")
 
     # Декодируем токен
     try:
@@ -56,8 +53,6 @@ def upload_image():
             algorithms=['HS256']
         )
         user_id = payload.get('sub')
-        print(f"🔍 User ID from token: {user_id}")
-
         if not user_id:
             return jsonify({'error': 'Неверный токен'}), 401
 
@@ -65,17 +60,8 @@ def upload_image():
             "SELECT id, username, display_name, avatar_url FROM users WHERE id = %s",
             [user_id], fetch_one=True
         )
-
         if not user:
             return jsonify({'error': 'User not found'}), 404
-
-        print(f"✅ User found: {user['username']}")
-
-    except jwt.ExpiredSignatureError:
-        return jsonify({'error': 'Token expired'}), 401
-    except jwt.InvalidTokenError as e:
-        print(f"❌ Invalid token: {e}")
-        return jsonify({'error': 'Invalid token'}), 401
     except Exception as e:
         print(f"❌ Error decoding token: {e}")
         return jsonify({'error': 'Authentication failed'}), 401
@@ -84,39 +70,40 @@ def upload_image():
         return jsonify({'error': 'Нет файла'}), 400
 
     file = request.files['file']
-    print(f"📁 File name: {file.filename}")
-
     if file.filename == '':
         return jsonify({'error': 'Файл не выбран'}), 400
 
     if not allowed_file(file.filename):
-        return jsonify({'error': 'Неподдерживаемый формат файла. Используйте: png, jpg, jpeg, gif, webp'}), 400
+        return jsonify({'error': 'Неподдерживаемый формат файла'}), 400
 
-    # Создаем папку для загрузок
-    UPLOAD_FOLDER = get_upload_folder()
-    UPLOAD_FOLDER.mkdir(exist_ok=True, parents=True)
-    print(f"📁 Upload folder: {UPLOAD_FOLDER}")
+    # Читаем файл и конвертируем в base64
+    file_data = file.read()
+    file_size = len(file_data)
 
-    # Генерируем уникальное имя
+    if file_size > MAX_FILE_SIZE:
+        return jsonify({'error': f'Файл слишком большой. Максимум {MAX_FILE_SIZE // (1024 * 1024)}MB'}), 400
+
+    # Определяем MIME тип
     ext = file.filename.rsplit('.', 1)[1].lower()
-    filename = f"{user['id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.{ext}"
-    filepath = UPLOAD_FOLDER / filename
+    mime_map = {
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'gif': 'image/gif',
+        'webp': 'image/webp'
+    }
+    mime_type = mime_map.get(ext, 'image/jpeg')
 
-    # Сохраняем файл
-    file.save(str(filepath))
-    print(f"💾 File saved: {filepath}")
-    print(f"📏 File size: {filepath.stat().st_size} bytes")
+    # Кодируем в base64
+    base64_string = base64.b64encode(file_data).decode('utf-8')
+    data_url = f"data:{mime_type};base64,{base64_string}"
 
-    # Возвращаем URL
-    backend_url = os.environ.get('BACKEND_URL', 'https://velad-production.up.railway.app')
-    file_url = f"{backend_url}/uploads/{filename}"
-    print(f"📎 File URL: {file_url}")
+    print(f"✅ Image converted to base64, size: {len(data_url)} chars")
 
     return jsonify({
-        'url': file_url,
-        'filename': filename
+        'url': data_url,
+        'filename': file.filename
     }), 200
-
 
 def get_user_from_token(token):
     """Получение пользователя из JWT токена"""
@@ -134,7 +121,6 @@ def get_user_from_token(token):
     except Exception as e:
         print(f"Token decode error: {e}")
         return None
-
 
 @posts_bp.route('/posts', methods=['POST'])
 def create_post():
@@ -397,9 +383,6 @@ def get_feed():
 
     return jsonify(posts), 200
 
-
-# ... остальной код (like_post, update_post, delete_post, comments, reposts) остается без изменений
-# он слишком большой, но вы можете скопировать его из вашего исходного файла
 
 @posts_bp.route('/posts/<post_id>/like', methods=['POST'])
 def like_post(post_id):
