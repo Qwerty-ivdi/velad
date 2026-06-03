@@ -1,7 +1,7 @@
 // src/components/posts/CreatePost.jsx
 import React, { useState } from 'react';
 import { FaImage, FaTimes } from 'react-icons/fa';
-import { API_URL } from '../../config';  // 👈 ДОБАВЬТЕ ИМПОРТ
+import { API_URL } from '../../config';
 
 const CreatePost = ({ token, onPostCreated }) => {
   const [content, setContent] = useState('');

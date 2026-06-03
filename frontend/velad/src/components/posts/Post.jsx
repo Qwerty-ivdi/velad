@@ -124,19 +124,14 @@ const Post = ({ post, token, isOwnPost = false, currentUserId, onPostUpdate, onP
           
           <p className="repost-original-text">{post.original_content}</p>
           
-          {post.original_media_urls && post.original_media_urls.length > 0 && (
-            <div className={`repost-media ${post.original_media_urls.length === 1 ? 'single' : ''} ${post.original_media_urls.length === 2 ? 'grid-2' : ''}`}>
+          {post.original_media_urls && Array.isArray(post.original_media_urls) && post.original_media_urls.length > 0 && (
+            <div className="repost-media">
               {post.original_media_urls.map((url, i) => (
-                <img 
-                  key={i} 
-                  src={url} 
-                  alt={`repost-media-${i}`}
-                  onClick={() => window.open(url, '_blank')}
-                />
+                <img key={i} src={url} alt="" />
               ))}
             </div>
           )}
-          
+                    
           {post.repost_comment && (
             <div className="repost-comment">
               <span className="repost-comment-icon">💬</span>
@@ -239,8 +234,8 @@ const Post = ({ post, token, isOwnPost = false, currentUserId, onPostUpdate, onP
         <>
           <div className="post-content">
             <p>{post.content}</p>
-            {post.media_urls?.length > 0 && (
-              <div className={`post-media ${post.media_urls.length === 1 ? 'single' : ''} ${post.media_urls.length === 2 ? 'grid-2' : ''} ${post.media_urls.length === 3 ? 'grid-3' : ''}`}>
+            {post.media_urls && Array.isArray(post.media_urls) && post.media_urls.length > 0 && (
+              <div className={`post-media ${post.media_urls.length === 1 ? 'single' : ''}`}>
                 {post.media_urls.map((url, i) => (
                   <img key={i} src={url} alt="" />
                 ))}
