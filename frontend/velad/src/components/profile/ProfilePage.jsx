@@ -222,13 +222,14 @@ const handleFollow = async () => {
     const token = api.getToken();
     const wasFollowing = profile?.is_following;
     
+    // Немедленное обновление UI
     setProfile(prev => ({ 
       ...prev, 
       is_following: !wasFollowing,
       followers_count: (prev.followers_count || 0) + (wasFollowing ? -1 : 1)
     }));
     
-    // Обновляем кэш
+    // ВАЖНО: инвалидируем кэш ПЕРЕД запросом
     cache.invalidateProfile(profileId);
     
     if (wasFollowing) {
@@ -237,11 +238,15 @@ const handleFollow = async () => {
       await api.followUser(token, profileId);
     }
     
-    // Дополнительно обновляем списки подписчиков/подписок
-    loadFollowers();
-    loadFollowing();
+    // Принудительно перезагружаем профиль из API (минуя кэш)
+    setTimeout(async () => {
+      const freshProfile = await api.getUserById(profileId);
+      setProfile(freshProfile);
+      cache.setProfile(profileId, freshProfile);
+    }, 500);
     
   } catch (err) {
+    // Откат при ошибке
     setProfile(prev => ({ 
       ...prev, 
       is_following: !prev.is_following,
