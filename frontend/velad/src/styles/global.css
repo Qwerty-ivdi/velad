@@ -1799,3 +1799,84 @@ body {
     padding-top: 60px;
   }
 }
+
+/* User List Item - единый стиль */
+.user-list-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: #1e1e2e;
+  border-radius: 12px;
+  transition: background 0.2s;
+}
+
+.user-list-item:hover {
+  background: #2a2a3e;
+}
+
+.user-list-avatar img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-list-info {
+  flex: 1;
+}
+
+.user-list-info h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: white;
+}
+
+.user-list-info p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #a0a0b0;
+}
+
+.user-list-info span {
+  font-size: 0.7rem;
+  color: #a0a0b0;
+}
+
+.user-list-action {
+  min-width: 100px;
+  text-align: right;
+}
+
+.follow-btn {
+  background: #9146FF;
+  border: none;
+  color: white;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.follow-btn:hover {
+  background: #772ce8;
+}
+
+.follow-btn.following {
+  background: #2a2a3e;
+  border: 1px solid #9146FF;
+}
+
+.follow-btn.following:hover {
+  background: #3a3a4e;
+}
+
+.self-badge {
+  background: #2a2a3e;
+  color: #a0a0b0;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  display: inline-block;
+}

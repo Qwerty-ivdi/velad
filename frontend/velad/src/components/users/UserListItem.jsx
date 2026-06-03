@@ -6,8 +6,11 @@ import { api } from '../../lib/supabase';
 const UserListItem = ({ user, token, currentUserId, onFollowChange }) => {
   const [isFollowing, setIsFollowing] = useState(user.is_following || false);
   const [followersCount, setFollowersCount] = useState(user.followers_count || 0);
+  const isCurrentUser = currentUserId === user.id;
 
   const handleFollow = async () => {
+    if (isCurrentUser) return;
+    
     try {
       if (isFollowing) {
         await api.unfollowUser(token, user.id);
@@ -25,33 +28,35 @@ const UserListItem = ({ user, token, currentUserId, onFollowChange }) => {
     }
   };
 
-  if (currentUserId === user.id) {
-    return (
-      <div className="user-list-item">
-        <img src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.display_name}&background=9146FF&color=fff&size=48`} alt="" className="user-list-avatar" />
-        <div className="user-list-info">
-          <h4>{user.display_name}</h4>
-          <p>@{user.username}</p>
-          <span>📊 {followersCount} подписчиков</span>
-        </div>
-        <span className="self-badge">Это вы</span>
-      </div>
-    );
-  }
-
+  // Одинаковый вид для всех карточек
   return (
     <div className="user-list-item">
       <Link to={`/profile/${user.id}`} className="user-list-avatar">
-        <img src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.display_name}&background=9146FF&color=fff&size=48`} alt="" />
+        <img 
+          src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.display_name}&background=9146FF&color=fff&size=48`} 
+          alt={user.display_name}
+        />
       </Link>
       <div className="user-list-info">
-        <Link to={`/profile/${user.id}`}><h4>{user.display_name}</h4></Link>
+        <Link to={`/profile/${user.id}`}>
+          <h4>{user.display_name}</h4>
+        </Link>
         <p>@{user.username}</p>
         <span>📊 {followersCount} подписчиков</span>
       </div>
-      <button className={`follow-btn ${isFollowing ? 'following' : ''}`} onClick={handleFollow}>
-        {isFollowing ? 'Отписаться' : 'Подписаться'}
-      </button>
+      {/* Единый блок для действия - либо кнопка, либо метка "Это вы" */}
+      <div className="user-list-action">
+        {isCurrentUser ? (
+          <span className="self-badge">Это вы</span>
+        ) : (
+          <button 
+            className={`follow-btn ${isFollowing ? 'following' : ''}`} 
+            onClick={handleFollow}
+          >
+            {isFollowing ? 'Отписаться' : 'Подписаться'}
+          </button>
+        )}
+      </div>
     </div>
   );
 };
