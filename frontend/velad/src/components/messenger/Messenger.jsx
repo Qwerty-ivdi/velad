@@ -146,7 +146,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     const initConversation = async () => {
       if (otherUserId) {
         const convs = await loadConversations();
-        const existing = convs.find(c => c.other_user_id === otherUserId);
+        const existing = convs && Array.isArray(convs) ? convs.find(c => c.other_user_id === otherUserId) : null;const existing = convs.find(c => c.other_user_id === otherUserId);
         
         if (existing) {
           setSelectedConversation(existing);

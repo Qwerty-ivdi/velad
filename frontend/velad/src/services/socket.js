@@ -1,6 +1,6 @@
 // src/services/socket.js
 import { io } from 'socket.io-client';
-import { API_URL } from '../config';
+import { SOCKET } from '../config';
 
 class SocketService {
   constructor() {
@@ -14,7 +14,7 @@ class SocketService {
     }
 
     // Убираем /api из URL для сокетов
-    const baseUrl = API_URL.replace('/api', '');
+    const baseUrl = SOCKET;
     
     this.socket = io(baseUrl, {
       query: { token },
