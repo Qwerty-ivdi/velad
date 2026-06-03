@@ -1,6 +1,5 @@
 // src/services/socket.js
 import { io } from 'socket.io-client';
-import { API_URL } from '../config';
 
 class SocketService {
   constructor() {
@@ -20,16 +19,17 @@ class SocketService {
     
     console.log('🔌 Connecting to WebSocket at:', socketUrl);
     
+    // Используем polling если websocket не работает
     this.socket = io(socketUrl, {
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],  // polling как fallback
       reconnection: true,
       reconnectionAttempts: 10,
-      reconnectionDelay: 1000
+      reconnectionDelay: 1000,
+      timeout: 20000
     });
 
     this.socket.on('connect', () => {
       console.log('✅ WebSocket connected');
-      // Аутентифицируемся после подключения
       this.socket.emit('authenticate', { token });
     });
 
@@ -40,21 +40,10 @@ class SocketService {
 
     this.socket.on('auth_error', (error) => {
       console.error('❌ Auth error:', error);
-      this.connected = false;
     });
 
     this.socket.on('connect_error', (error) => {
       console.error('❌ WebSocket connection error:', error);
-      this.connected = false;
-    });
-
-    this.socket.on('disconnect', () => {
-      console.log('🔌 WebSocket disconnected');
-      this.connected = false;
-    });
-
-    this.socket.on('error', (error) => {
-      console.error('❌ WebSocket error:', error);
     });
 
     return this.socket;
