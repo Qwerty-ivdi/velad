@@ -1,3 +1,4 @@
+// src/components/auth/AuthCallback.jsx
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../../lib/supabase';
@@ -11,6 +12,11 @@ const AuthCallback = ({ setUser }) => {
     const accessToken = params.get('access_token');
     const error = params.get('error');
 
+    console.log('🔍 AuthCallback mounted');
+    console.log('🔍 Full URL:', window.location.href);
+    console.log('🔍 Access token from URL:', accessToken ? accessToken.substring(0, 50) + '...' : 'null');
+    console.log('🔍 Error:', error);
+
     if (error) {
       console.error('Auth error:', error);
       navigate('/login?error=twitch_auth_failed');
@@ -18,20 +24,25 @@ const AuthCallback = ({ setUser }) => {
     }
 
     if (accessToken) {
-      console.log('📝 Received access token:', accessToken.substring(0, 50) + '...');
+      console.log('📝 Saving token to localStorage');
       api.setToken(accessToken);
       
+      console.log('📡 Fetching user profile...');
       api.getProfile(accessToken)
         .then(user => {
           console.log('✅ User profile loaded:', user);
           api.setUser(user);
-          setUser(user);
+          if (setUser) setUser(user);
           navigate('/profile');
         })
         .catch(err => {
-          console.error('Error getting user profile:', err);
+          console.error('❌ Error getting user profile:', err);
+          console.error('❌ Error details:', err.message);
           navigate('/login');
         });
+    } else {
+      console.log('❌ No access token in URL');
+      navigate('/login');
     }
   }, [location, navigate, setUser]);
 

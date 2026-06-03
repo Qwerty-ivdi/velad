@@ -88,13 +88,21 @@ export const api = {
   },
 
   async getProfile(token) {
-    const response = await fetch(`${API_URL}/profile`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Ошибка получения профиля');
-    return result;
-  },
+  console.log('📡 getProfile called with token:', token ? token.substring(0, 50) + '...' : 'null');
+  console.log('📡 API_URL:', API_URL);
+  
+  const response = await fetch(`${API_URL}/profile`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  
+  console.log('📡 Profile response status:', response.status);
+  
+  const result = await response.json();
+  console.log('📡 Profile response data:', result);
+  
+  if (!response.ok) throw new Error(result.error || 'Ошибка получения профиля');
+  return result;
+},
 
   // ==================== ХРАНЕНИЕ ТОКЕНА ====================
   setToken(token) {
