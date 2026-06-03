@@ -21,35 +21,25 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     app.config['SECRET_KEY'] = Config.SECRET_KEY
-    socketio = SocketIO(app, cors_allowed_origins="*")
 
-    # ========== ПРАВИЛЬНАЯ НАСТРОЙКА CORS ==========
+    # Настройка CORS
     CORS(app,
          origins="*",
          supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'])
 
-
-    # ========== ОТДЕЛЬНЫЙ ОБРАБОТЧИК ДЛЯ OPTIONS ==========
-    @app.route('/<path:path>', methods=['OPTIONS'])
-    @app.route('/', methods=['OPTIONS'])
-    def handle_options(path=None):
-        response = app.make_default_options_response()
-        response.headers.add('Access-Control-Allow-Origin',
-            request.headers.get('Origin', 'https://veladtwitch.vercel.app'))
-        response.headers.add('Access-Control-Allow-Headers',
-            'Content-Type, Authorization, X-Requested-With, Accept')
-        response.headers.add('Access-Control-Allow-Methods',
-            'GET, POST, PUT, DELETE, OPTIONS, PATCH')
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
-
     # Инициализация БД
     db_service.init_app(app)
 
-    # Инициализация Socket.IO
-    socketio.init_app(app, cors_allowed_origins="*")
+    # Инициализация SocketIO с eventlet
+    socketio = SocketIO(app,
+                        cors_allowed_origins="*",
+                        logger=True,
+                        engineio_logger=True,
+                        async_mode='eventlet',
+                        ping_timeout=60,
+                        ping_interval=25)
 
     # Регистрация Blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')

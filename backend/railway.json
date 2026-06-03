@@ -3,7 +3,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 2 --memory-limit 256 run:app",
+    "startCommand": "gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 1 --worker-class eventlet run:app",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 1000,
     "restartPolicyType": "ON_FAILURE"
