@@ -172,8 +172,13 @@ def twitch_login():
     backend_url = get_backend_url()
     redirect_uri = f"{backend_url}/api/auth/twitch/callback"
 
-    print(f"🔐 BACKEND URL: {backend_url}")
-    print(f"🔐 REDIRECT URI: {redirect_uri}")
+    # РАСШИРЕННАЯ ОТЛАДКА
+    print("=" * 60)
+    print("🔍 TWITCH LOGIN CALLED")
+    print(f"🔍 BACKEND_URL: {backend_url}")
+    print(f"🔍 REDIRECT_URI: {redirect_uri}")
+    print(f"🔍 TWITCH_CLIENT_ID: {current_app.config.get('TWITCH_CLIENT_ID', 'NOT SET')}")
+    print("=" * 60)
 
     params = {
         'client_id': current_app.config['TWITCH_CLIENT_ID'],
@@ -184,6 +189,7 @@ def twitch_login():
     }
 
     auth_url = f"https://id.twitch.tv/oauth2/authorize?{urlencode(params)}"
+    print(f"🔐 Twitch auth URL: {auth_url}")
     return redirect(auth_url)
 
 
