@@ -166,22 +166,28 @@ def login():
 @auth_bp.route('/twitch/login', methods=['GET'])
 def twitch_login():
     """Начало OAuth авторизации через Twitch"""
+
+    # Проверяем, что переменные установлены
+    client_id = current_app.config.get('TWITCH_CLIENT_ID')
+    if not client_id:
+        print("❌ TWITCH_CLIENT_ID is not set!")
+        return jsonify({'error': 'Twitch Client ID not configured'}), 500
+
     state = secrets.token_urlsafe(32)
     session['twitch_oauth_state'] = state
 
     backend_url = get_backend_url()
     redirect_uri = f"{backend_url}/api/auth/twitch/callback"
 
-    # РАСШИРЕННАЯ ОТЛАДКА
     print("=" * 60)
     print("🔍 TWITCH LOGIN CALLED")
     print(f"🔍 BACKEND_URL: {backend_url}")
     print(f"🔍 REDIRECT_URI: {redirect_uri}")
-    print(f"🔍 TWITCH_CLIENT_ID: {current_app.config.get('TWITCH_CLIENT_ID', 'NOT SET')}")
+    print(f"🔍 CLIENT_ID: {client_id[:10]}...")
     print("=" * 60)
 
     params = {
-        'client_id': current_app.config['TWITCH_CLIENT_ID'],
+        'client_id': client_id,
         'redirect_uri': redirect_uri,
         'response_type': 'code',
         'scope': 'chat:read chat:edit user:read:email',
@@ -189,7 +195,6 @@ def twitch_login():
     }
 
     auth_url = f"https://id.twitch.tv/oauth2/authorize?{urlencode(params)}"
-    print(f"🔐 Twitch auth URL: {auth_url}")
     return redirect(auth_url)
 
 
