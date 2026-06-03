@@ -76,6 +76,7 @@ def get_profile():
 def get_profile_by_id(user_id):
     """Получение профиля по ID"""
     try:
+        # Получаем данные пользователя
         user = db_service.execute_query("""
             SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, 
                    u.location, u.website, u.created_at,
@@ -90,7 +91,7 @@ def get_profile_by_id(user_id):
         if not user:
             return jsonify({'error': 'Профиль не найден'}), 404
 
-        # Проверяем, подписан ли текущий пользователь
+        # Получаем текущего пользователя из токена
         auth_header = request.headers.get('Authorization')
         is_following = False
 
@@ -105,17 +106,19 @@ def get_profile_by_id(user_id):
                 )
                 current_user_id = payload.get('sub')
 
-                print(f"🔍 Current user ID: {current_user_id}")
-                print(f"🔍 Target user ID: {user_id}")
+                print(f"🔍 Current user: {current_user_id}")
+                print(f"🔍 Target user: {user_id}")
 
+                # Проверяем, есть ли подписка
                 if current_user_id and current_user_id != user_id:
-                    follow_check = db_service.execute_query(
-                        "SELECT id FROM follows WHERE follower_id = %s AND following_id = %s",
-                        [current_user_id, user_id], fetch_one=True
-                    )
+                    follow_check = db_service.execute_query("""
+                        SELECT id FROM follows 
+                        WHERE follower_id = %s AND following_id = %s
+                    """, [current_user_id, user_id], fetch_one=True)
+
+                    print(f"🔍 Follow check: {follow_check}")
                     is_following = follow_check is not None
-                    print(f"🔍 Follow check result: {follow_check}")
-                    print(f"🔍 is_following: {is_following}")
+
             except Exception as e:
                 print(f"Error decoding token: {e}")
 
@@ -129,17 +132,17 @@ def get_profile_by_id(user_id):
             'website': user.get('website'),
             'created_at': user.get('created_at').isoformat() if user.get('created_at') else None,
             'twitch_login': user.get('twitch_login'),
-            'followers_count': user.get('followers_count', 0),
-            'following_count': user.get('following_count', 0),
-            'posts_count': user.get('posts_count', 0),
-            'is_following': is_following  # 👈 УБЕДИТЕСЬ, ЧТО ЭТА СТРОЧКА ЕСТЬ!
+            'followers_count': int(user.get('followers_count', 0)),
+            'following_count': int(user.get('following_count', 0)),
+            'posts_count': int(user.get('posts_count', 0)),
+            'is_following': is_following
         }
 
-        print(f"🔍 Final result: {result}")
+        print(f"🔍 Result: {result}")
         return jsonify(result), 200
 
     except Exception as e:
-        print(f"❌ Error getting profile by id: {e}")
+        print(f"❌ Error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
