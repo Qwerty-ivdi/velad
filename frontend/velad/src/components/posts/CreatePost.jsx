@@ -1,7 +1,7 @@
 // src/components/posts/CreatePost.jsx
 import React, { useState } from 'react';
 import { FaImage, FaTimes } from 'react-icons/fa';
-import { API_URL } from '../../config';
+import { API_URL } from '../../config';  // 👈 ДОБАВЬТЕ ИМПОРТ
 
 const CreatePost = ({ token, onPostCreated }) => {
   const [content, setContent] = useState('');
@@ -23,7 +23,7 @@ const CreatePost = ({ token, onPostCreated }) => {
         const formData = new FormData();
         formData.append('file', file);
         
-        // ИСПРАВЛЕНО: используем API_URL из конфига
+        // ИСПРАВЛЕНО: используем API_URL
         const response = await fetch(`${API_URL}/upload`, {
           method: 'POST',
           headers: {
@@ -33,7 +33,8 @@ const CreatePost = ({ token, onPostCreated }) => {
         });
         
         if (!response.ok) {
-          throw new Error(`Upload failed: ${response.status}`);
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Upload failed: ${response.status}`);
         }
         
         const data = await response.json();
@@ -61,6 +62,7 @@ const CreatePost = ({ token, onPostCreated }) => {
     setError(null);
     
     try {
+      // ИСПРАВЛЕНО: используем API_URL
       const response = await fetch(`${API_URL}/posts`, {
         method: 'POST',
         headers: {
@@ -75,7 +77,8 @@ const CreatePost = ({ token, onPostCreated }) => {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to create post');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create post');
       }
       
       const newPost = await response.json();
