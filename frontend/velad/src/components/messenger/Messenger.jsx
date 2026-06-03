@@ -198,6 +198,17 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, [otherUserId]);
 
+  useEffect(() => {
+  const loadAllConversations = async () => {
+    console.log('🔍 Loading all conversations for messenger');
+    const convs = await loadConversations();
+    setConversations(convs);
+    setLoading(false);
+  };
+  
+  loadAllConversations();
+}, []);
+
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

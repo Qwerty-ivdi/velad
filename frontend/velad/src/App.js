@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { api } from './lib/supabase';
-import Navbar from './components/common/Navbar';
+import Navbar from './components/layout/Navbar';
 import LoginPage from './components/auth/LoginPage';
 import RegisterPage from './components/auth/RegisterPage';
 import AuthCallback from './components/auth/AuthCallback';
@@ -10,12 +10,12 @@ import ProfilePage from './components/profile/ProfilePage';
 import StreamsPage from './components/twitch/StreamsPage';
 import TwitchPlayer from './components/twitch/TwitchPlayer';
 import YearlyStats from './components/stats/YearlyStats';
-import Messenger from './components/messenger/Messenger';  // 👈 ДОБАВЬТЕ
+import Messenger from './components/messenger/Messenger';
 import './styles/global.css';
 
 function App() {
   const [user, setUser] = useState(null);
-  const [showMessenger, setShowMessenger] = useState(false);  // 👈 ДОБАВЬТЕ
+  const [showMessenger, setShowMessenger] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,8 +51,9 @@ function App() {
         <Navbar 
           user={user} 
           onLogout={handleLogout} 
-          onOpenMessenger={openMessenger}  // 👈 ПЕРЕДАЙТЕ
+          onOpenMessenger={openMessenger}
         />
+        
         <div className="main-content">
           <Routes>
             <Route path="/" element={<Navigate to="/streams" />} />
@@ -71,7 +72,7 @@ function App() {
         {showMessenger && user && (
           <Messenger
             currentUserId={user.id}
-            otherUserId={null}  // null означает, что показываем список диалогов
+            otherUserId={null}
             otherUserName={null}
             otherUserAvatar={null}
             onClose={closeMessenger}
