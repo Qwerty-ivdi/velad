@@ -28,19 +28,33 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
 
   // Загрузка диалогов
   const loadConversations = async () => {
-    try {
-      const token = api.getToken();
-      const response = await fetch(`${API_URL}/conversations`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      setConversations(data || []);
-      return data || [];
-    } catch (err) {
-      console.error('Error loading conversations:', err);
-      return [];
+  try {
+    const token = api.getToken();
+    const response = await fetch(`${API_URL}/conversations`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    // 1. Проверяем, успешен ли ответ
+    if (!response.ok) {
+      console.error(`Ошибка загрузки диалогов: ${response.status}`);
+      return []; 
     }
-  };
+    
+    const data = await response.json();
+    
+    // 2. Проверяем, что data — это массив
+    if (!Array.isArray(data)) {
+      console.error('Сервер вернул не массив для диалогов:', data);
+      return []; 
+    }
+    
+    setConversations(data);
+    return data;
+  } catch (err) {
+    console.error('Error loading conversations:', err);
+    return [];
+  }
+};
 
   // Загрузка сообщений
   const loadMessages = async (conversationId) => {
@@ -179,7 +193,8 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     };
     
     if (otherUserId) {
-      initConversation();
+      const convs = await loadConversations(); // Здесь теперь всегда массив
+      const existing = convs.length > 0 ? convs.find(c => c.other_user_id === otherUserId) : null;
     }
   }, [otherUserId]);
 
