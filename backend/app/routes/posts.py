@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from app.services.db_service import db_service
+from app.config import Config
 import uuid
 from datetime import datetime
 import os
@@ -56,20 +57,16 @@ def upload_image():
     # Сохраняем файл
     file.save(str(filepath))
 
-    # Проверяем, что файл создан
-    if filepath.exists():
-        print(f"✅ File saved: {filepath}, size: {filepath.stat().st_size} bytes")
-    else:
-        print(f"❌ File not saved: {filepath}")
 
-    # Возвращаем полный URL
-    file_url = f"http://localhost:5000/uploads/{filename}"
+    backend_url = os.environ.get('BACKEND_URL', 'https://velad-production.up.railway.app')
+    file_url = f"{backend_url}/uploads/{filename}"
     print(f"📎 File URL: {file_url}")
 
     return jsonify({
         'url': file_url,
         'filename': filename
     }), 200
+
 
 def get_user_from_token(token):
     """Получение пользователя из JWT токена"""
