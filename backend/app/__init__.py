@@ -16,6 +16,10 @@ from app.services.twitch_service import twitch_service
 from app.routes.twitch_webhook import twitch_webhook_bp
 from app.routes.user import user_bp
 import os
+import dns.resolver
+
+dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
+dns.resolver.default_resolver.nameservers = ['8.8.8.8', '8.8.4.4']
 
 
 def create_app():
@@ -23,14 +27,14 @@ def create_app():
     app.config.from_object(Config)
     app.config['SECRET_KEY'] = Config.SECRET_KEY
 
-    CORS(app, origins="*", supports_credentials=True)
+    CORS(app,
+         origins=["http://localhost:3000", "https://veladtwitch.vercel.app"],
+         supports_credentials=True,
+         allow_headers=['Content-Type', 'Authorization'])
 
     db_service.init_app(app)
 
-    # Используем threading вместо eventlet для избежания DNS проблем
-    socketio = SocketIO(app,
-                        cors_allowed_origins="*",
-                        async_mode='threading')
+    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
     # Регистрация Blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -49,6 +53,6 @@ def create_app():
 
     @app.route('/health', methods=['GET'])
     def health_check():
-        return {'status': 'ok', 'message': 'Velad API is running'}, 200
+        return {'status': 'ok'}, 200
 
     return app, socketio
