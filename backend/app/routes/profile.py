@@ -27,8 +27,6 @@ def get_user_from_token(token):
 @jwt_required()
 def get_profile():
     try:
-        # get_jwt_identity() работает только с токенами от create_access_token
-        # Если вы используете jwt.encode, нужно декодировать вручную
         auth_header = request.headers.get('Authorization')
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1]
@@ -38,21 +36,24 @@ def get_profile():
                 current_app.config['SECRET_KEY'],
                 algorithms=['HS256']
             )
-            user_id = payload.get('sub')  # Или 'user_id', в зависимости от того, что вы использовали
+            user_id = payload.get('sub')
         else:
             return jsonify({'error': 'No token'}), 401
 
         print(f"📡 Getting profile for user: {user_id}")
 
         user = db_service.execute_query("""
-            SELECT id, email, username, display_name, avatar_url, created_at,
-                   twitch_login, twitch_id
-            FROM users WHERE id = %s
+            SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.created_at,
+                   u.twitch_login, u.twitch_id,
+                   COALESCE((SELECT COUNT(*) FROM follows WHERE following_id = u.id), 0) as followers_count,
+                   COALESCE((SELECT COUNT(*) FROM follows WHERE follower_id = u.id), 0) as following_count,
+                   COALESCE((SELECT COUNT(*) FROM posts WHERE user_id = u.id), 0) as posts_count
+            FROM users u
+            WHERE u.id = %s
         """, [user_id], fetch_one=True)
 
         if not user:
             return jsonify({'error': 'User not found'}), 404
-
 
         return jsonify({
             'id': user.get('id'),
@@ -62,7 +63,10 @@ def get_profile():
             'avatar_url': user.get('avatar_url'),
             'created_at': user.get('created_at').isoformat() if user.get('created_at') else None,
             'twitch_login': user.get('twitch_login'),
-            'has_twitch': user.get('twitch_id') is not None
+            'has_twitch': user.get('twitch_id') is not None,
+            'followers_count': user.get('followers_count', 0),
+            'following_count': user.get('following_count', 0),
+            'posts_count': user.get('posts_count', 0)
         }), 200
 
     except Exception as e:
@@ -79,9 +83,9 @@ def get_profile_by_id(user_id):
         user = db_service.execute_query("""
             SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, 
                    u.location, u.website, u.created_at,
-                   (SELECT COUNT(*) FROM follows WHERE following_id = u.id) as followers_count,
-                   (SELECT COUNT(*) FROM follows WHERE follower_id = u.id) as following_count,
-                   (SELECT COUNT(*) FROM posts WHERE user_id = u.id) as posts_count
+                   COALESCE((SELECT COUNT(*) FROM follows WHERE following_id = u.id), 0) as followers_count,
+                   COALESCE((SELECT COUNT(*) FROM follows WHERE follower_id = u.id), 0) as following_count,
+                   COALESCE((SELECT COUNT(*) FROM posts WHERE user_id = u.id), 0) as posts_count
             FROM users u
             WHERE u.id = %s
         """, [user_id], fetch_one=True)
@@ -95,6 +99,9 @@ def get_profile_by_id(user_id):
         return jsonify(user), 200
 
     except Exception as e:
+        print(f"❌ Error getting profile by id: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
