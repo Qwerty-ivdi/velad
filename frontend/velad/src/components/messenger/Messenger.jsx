@@ -209,6 +209,62 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   loadAllConversations();
 }, []);
 
+  useEffect(() => {
+  const socket = socketService.getSocket();
+  if (!socket) return;
+
+  console.log("🔌 Setting up listeners, socket connected:", socket.connected);
+
+  const handleNewMessage = (message) => {
+    console.log('📩 New message received:', message);
+    
+    // Обновляем список диалогов
+    loadConversations();
+    
+    // Проверяем, относится ли сообщение к текущему открытому диалогу
+    if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
+      console.log('✅ Message belongs to current conversation, adding to messages');
+      
+      setMessages(prev => {
+        // Проверяем, нет ли уже такого сообщения
+        if (prev.some(m => m.id === message.id)) {
+          return prev;
+        }
+        return [...prev, message];
+      });
+      
+      markAsRead(selectedConversation.id);
+      scrollToBottom();
+    } else if (!selectedConversation && message.receiver_id === currentUserId) {
+      // Если диалог не открыт, но пришло новое сообщение - обновляем список диалогов
+      console.log('📩 New message from unknown conversation, refreshing list');
+      loadConversations();
+    }
+  };
+
+  const handleMessageSent = (message) => {
+    console.log('✅ Message sent confirmation:', message);
+    
+    // Обновляем список диалогов
+    loadConversations();
+    
+    // Обновляем сообщение, если оно было временным
+    setMessages(prev => prev.map(msg => 
+      (msg.is_temp && msg.content === message.content && msg.sender_id === message.sender_id)
+        ? { ...message, is_temp: false }
+        : msg
+    ));
+  };
+
+  socket.on('new_message', handleNewMessage);
+  socket.on('message_sent', handleMessageSent);
+
+  return () => {
+    socket.off('new_message', handleNewMessage);
+    socket.off('message_sent', handleMessageSent);
+  };
+}, [selectedConversation, currentUserId]);
+
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

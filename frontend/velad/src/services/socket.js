@@ -1,6 +1,6 @@
 // src/services/socket.js
 import { io } from 'socket.io-client';
-import { SOCKET } from '../config';
+import { API_URL } from '../config';
 
 class SocketService {
   constructor() {
@@ -13,10 +13,15 @@ class SocketService {
       return this.socket;
     }
 
-    // Убираем /api из URL для сокетов
-    const baseUrl = SOCKET;
+    // Определяем URL для WebSocket
+    const isProduction = window.location.hostname !== 'localhost';
+    const socketUrl = isProduction 
+      ? 'https://velad-production.up.railway.app' 
+      : 'http://localhost:5000';
     
-    this.socket = io(baseUrl, {
+    console.log('🔌 Connecting to WebSocket at:', socketUrl);
+    
+    this.socket = io(socketUrl, {
       query: { token },
       transports: ['websocket'],
       reconnection: true,
@@ -25,7 +30,7 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('✅ WebSocket connected to:', baseUrl);
+      console.log('✅ WebSocket connected to:', socketUrl);
       this.connected = true;
     });
 
@@ -37,6 +42,11 @@ class SocketService {
     this.socket.on('disconnect', () => {
       console.log('🔌 WebSocket disconnected');
       this.connected = false;
+    });
+
+    // Добавляем обработчик ошибок
+    this.socket.on('error', (error) => {
+      console.error('❌ WebSocket error:', error);
     });
 
     return this.socket;
