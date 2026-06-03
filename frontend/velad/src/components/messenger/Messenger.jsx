@@ -196,7 +196,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     if (otherUserId) {
       initConversation();
     }
-  }, [otherUserId]);
+  }, [otherUserId, loadMessages, otherUserAvatar, otherUserName]);
 
   useEffect(() => {
   const loadAllConversations = async () => {

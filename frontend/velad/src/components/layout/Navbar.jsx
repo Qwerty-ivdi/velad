@@ -1,7 +1,7 @@
 // src/components/common/Navbar.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FaSearch, FaTv, FaChartBar, FaEnvelope, FaUser, FaSignOutAlt, FaTwitch, FaHome, FaBell } from 'react-icons/fa';
+import { FaSearch, FaTv, FaChartBar, FaEnvelope, FaSignOutAlt, FaTwitch } from 'react-icons/fa';
 
 const Navbar = ({ user, onLogout, onOpenMessenger }) => {
   const navigate = useNavigate();

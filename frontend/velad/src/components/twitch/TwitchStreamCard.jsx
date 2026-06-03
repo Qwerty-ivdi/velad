@@ -1,7 +1,7 @@
 // src/components/twitch/TwitchStreamCard.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';  // ← добавить
-import { FaTwitch, FaUsers, FaGamepad, FaCalendar, FaHeart, FaComment, FaShare } from 'react-icons/fa';
+import { FaTwitch, FaUsers, FaGamepad, FaCalendar, FaHeart, FaShare } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 
 const TwitchStreamCard = ({ stream, compact = false }) => {

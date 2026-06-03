@@ -34,7 +34,7 @@ const Post = ({ post, token, isOwnPost = false, currentUserId, onPostUpdate, onP
   if (loading) return;
   setLoading(true);
   try {
-    const result = await api.likePost(token, post.id);  // ← result объявлен здесь
+    await api.likePost(token, post.id);
     const newLiked = result.action === 'liked';
     const newLikesCount = result.likes_count;
     setLiked(newLiked);

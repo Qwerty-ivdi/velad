@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { api, twitchAuth } from '../../lib/supabase';
 import { API_URL } from '../../config';
-import { FaTwitch, FaTrophy, FaClock, FaCalendar, FaFire, FaHeart, FaLaugh, FaThumbsUp, FaComment } from 'react-icons/fa';
+import { FaTwitch, FaTrophy, FaClock, FaFire, FaHeart, FaLaugh, FaThumbsUp, FaComment } from 'react-icons/fa';
 import './Stats.css';
 
 const YearlyStats = ({ token, user }) => {
@@ -10,7 +10,7 @@ const YearlyStats = ({ token, user }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isTwitchConnected, setIsTwitchConnected] = useState(false);  // ← ДОБАВЬ ЭТО!
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [year] = useState(new Date().getFullYear());
 
   // Проверяем, связан ли Twitch аккаунт
   useEffect(() => {
