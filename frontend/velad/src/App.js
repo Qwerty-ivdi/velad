@@ -11,6 +11,7 @@ import StreamsPage from './components/twitch/StreamsPage';
 import TwitchPlayer from './components/twitch/TwitchPlayer';
 import YearlyStats from './components/stats/YearlyStats';
 import Messenger from './components/messenger/Messenger';
+import SearchPage from './components/search/SearchPage';
 import './styles/global.css';
 
 function App() {
@@ -63,6 +64,8 @@ function App() {
             <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} />} />
             <Route path="/profile/:userId" element={<ProfilePage user={user} setUser={setUser} />} />
             <Route path="/streams" element={<StreamsPage />} />
+            <Route path="/search" element={<SearchPage />} />
+
             <Route path="/stream/:channel" element={<TwitchPlayer token={api.getToken()} currentUser={user} />} />
             <Route path="/stats" element={<YearlyStats token={api.getToken()} user={user} />} />
           </Routes>
