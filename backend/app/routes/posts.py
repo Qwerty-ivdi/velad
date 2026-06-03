@@ -8,7 +8,6 @@ import base64
 from pathlib import Path
 
 # Настройки для загрузки
-UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
@@ -17,6 +16,20 @@ posts_bp = Blueprint('posts', __name__)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def get_upload_folder():
+    """Получить правильную папку для загрузок"""
+    if os.environ.get('RAILWAY_ENVIRONMENT'):
+        # На Railway используем /app/uploads (Persistent Disk)
+        # Сначала пробуем /app/uploads, если нет - /tmp/uploads
+        persistent_uploads = Path('/app/uploads')
+        if persistent_uploads.exists() or not Path('/tmp/uploads').exists():
+            return persistent_uploads
+        return Path('/tmp/uploads')
+    else:
+        BASE_DIR = Path(__file__).resolve().parent.parent.parent
+        return BASE_DIR / 'uploads'
 
 
 @posts_bp.route('/upload', methods=['POST'])
@@ -79,18 +92,9 @@ def upload_image():
     if not allowed_file(file.filename):
         return jsonify({'error': 'Неподдерживаемый формат файла. Используйте: png, jpg, jpeg, gif, webp'}), 400
 
-    # Создаем папку для загрузок (используем Railway persistent disk или /tmp)
-    import os
-    from pathlib import Path
-
-    # На Railway используем /tmp для временных файлов
-    if os.environ.get('RAILWAY_ENVIRONMENT'):
-        UPLOAD_FOLDER = Path('/tmp/uploads')
-    else:
-        BASE_DIR = Path(__file__).resolve().parent.parent.parent
-        UPLOAD_FOLDER = BASE_DIR / 'uploads'
-
-    UPLOAD_FOLDER.mkdir(exist_ok=True)
+    # Создаем папку для загрузок
+    UPLOAD_FOLDER = get_upload_folder()
+    UPLOAD_FOLDER.mkdir(exist_ok=True, parents=True)
     print(f"📁 Upload folder: {UPLOAD_FOLDER}")
 
     # Генерируем уникальное имя
@@ -130,6 +134,7 @@ def get_user_from_token(token):
     except Exception as e:
         print(f"Token decode error: {e}")
         return None
+
 
 @posts_bp.route('/posts', methods=['POST'])
 def create_post():
@@ -202,6 +207,7 @@ def create_post():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
 
 @posts_bp.route('/posts/<post_id>', methods=['GET'])
 def get_post(post_id):
@@ -368,7 +374,8 @@ def get_feed():
                 'original_author_name': row['original_author_display_name'],
                 'original_author_username': row['original_author_username'],
                 'original_author_avatar': row['original_author_avatar'],
-                'original_content': row['original_content']
+                'original_content': row['original_content'],
+                'original_media_urls': row.get('media_urls') or []  # Добавляем медиа для репоста
             })
         else:
             posts.append({
@@ -390,6 +397,9 @@ def get_feed():
 
     return jsonify(posts), 200
 
+
+# ... остальной код (like_post, update_post, delete_post, comments, reposts) остается без изменений
+# он слишком большой, но вы можете скопировать его из вашего исходного файла
 
 @posts_bp.route('/posts/<post_id>/like', methods=['POST'])
 def like_post(post_id):

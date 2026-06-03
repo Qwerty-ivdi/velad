@@ -1,7 +1,8 @@
 # app/__init__.py
-from flask import Flask, request
+from flask import Flask, request, send_from_directory
+from pathlib import Path
+from flask import make_response
 from flask_cors import CORS
-from flask import send_from_directory
 from flask_jwt_extended import JWTManager
 from flask_socketio import SocketIO
 from app.routes.stats import stats_bp
@@ -58,14 +59,30 @@ def create_app():
 
     @app.route('/uploads/<path:filename>')
     def uploaded_file(filename):
-        import os
-        from pathlib import Path
-
         if os.environ.get('RAILWAY_ENVIRONMENT'):
             upload_folder = Path('/tmp/uploads')
         else:
             upload_folder = Path(__file__).resolve().parent.parent / 'uploads'
 
-        return send_from_directory(upload_folder, filename)
+        # Проверяем существование файла
+        file_path = upload_folder / filename
+        if not file_path.exists():
+            return {'error': 'File not found'}, 404
+
+        # Отправляем файл с CORS заголовками
+        response = make_response(send_from_directory(upload_folder, filename))
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
+    # Добавляем OPTIONS обработчик для CORS preflight
+    @app.route('/uploads/<path:filename>', methods=['OPTIONS'])
+    def uploaded_file_options(filename):
+        response = make_response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
 
     return app, socketio
