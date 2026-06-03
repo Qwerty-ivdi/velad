@@ -118,7 +118,7 @@ def get_profile_by_id(user_id):
                     # Прямой SQL запрос для проверки подписки
                     follow_check = db_service.execute_query("""
                         SELECT id FROM follows 
-                        WHERE follower_id = %s AND following_id = %s
+                        WHERE follower_id = %s::uuid AND following_id = %s::uuid
                     """, [current_user_id, user_id], fetch_one=True)
 
                     print(f"🔍 Follow check result: {follow_check}")
