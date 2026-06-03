@@ -25,22 +25,22 @@ def validate_username(username):
     return re.match(r'^[a-zA-Z0-9_-]+$', username) is not None
 
 
+def get_backend_url():
+    """Получить URL бэкенда из переменной окружения"""
+    # Приоритет: переменная окружения
+    url = os.environ.get('BACKEND_URL')
+    if url:
+        return url.rstrip('/')
+    # На Railway используем правильный URL
+    return 'https://velad-production.up.railway.app'
+
+
 def get_frontend_url():
     """Получить URL фронтенда из переменной окружения"""
     url = os.environ.get('FRONTEND_URL')
     if url:
         return url.rstrip('/')
-    # Fallback для Railway
     return 'https://veladtwitch.vercel.app'
-
-
-def get_backend_url():
-    """Получить URL бэкенда из переменной окружения"""
-    url = os.environ.get('BACKEND_URL')
-    print(f"🔍 BACKEND_URL env: {url}")  # ОТЛАДКА
-    if url:
-        return url.rstrip('/')
-    return 'https://velad-production.up.railway.app'  # Жёсткое значение
 
 
 # ==================== EMAIL/ПАРОЛЬ РЕГИСТРАЦИЯ ====================
@@ -177,13 +177,17 @@ def twitch_login():
     session['twitch_oauth_state'] = state
 
     backend_url = get_backend_url()
-    redirect_uri = f"{backend_url}/auth/twitch/callback"
+    # Убираем возможный двойной /api
+    if backend_url.endswith('/api'):
+        backend_url = backend_url[:-4]
+
+    redirect_uri = f"{backend_url}/api/auth/twitch/callback"
 
     print("=" * 60)
     print("🔍 TWITCH LOGIN CALLED")
+    print(f"🔍 BACKEND_URL env: {os.environ.get('BACKEND_URL')}")
     print(f"🔍 BACKEND_URL: {backend_url}")
     print(f"🔍 REDIRECT_URI: {redirect_uri}")
-    print(f"🔍 CLIENT_ID: {client_id[:10]}...")
     print("=" * 60)
 
     params = {
@@ -195,6 +199,7 @@ def twitch_login():
     }
 
     auth_url = f"https://id.twitch.tv/oauth2/authorize?{urlencode(params)}"
+    print(f"🔐 Twitch auth URL: {auth_url}")
     return redirect(auth_url)
 
 
