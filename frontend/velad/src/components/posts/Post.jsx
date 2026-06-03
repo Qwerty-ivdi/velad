@@ -252,7 +252,6 @@ const Post = ({ post, token, isOwnPost = false, currentUserId, onPostUpdate, onP
             <button className="repost-btn" onClick={() => setShowRepostModal(true)} disabled={loading}>
               <FaRetweet /> <span>{repostsCount}</span>
             </button>
-            <button className="share-btn"><FaShare /></button>
           </div>
         </>
       )}
