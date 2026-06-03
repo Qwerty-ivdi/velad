@@ -2103,3 +2103,83 @@ body {
   color: #9146FF;
   background: rgba(145, 70, 255, 0.1);
 }
+
+/* Ограничения для превью изображений */
+.image-preview-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.image-preview {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f0f0f0;
+}
+
+.image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-preview button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.image-preview button:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.create-post-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.post-stats-info {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  font-size: 12px;
+  color: #666;
+}
+
+.images-count, .char-count {
+  background: #f0f0f0;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.image-upload-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.char-count.warning {
+  color: #f59e0b;
+}
+
+.char-count.danger {
+  color: #ef4444;
+}
