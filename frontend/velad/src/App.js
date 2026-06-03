@@ -13,7 +13,7 @@ import YearlyStats from './components/stats/YearlyStats';
 import Messenger from './components/messenger/Messenger';
 import SearchPage from './components/search/SearchPage';
 import './styles/global.css';
-import './styles/Navbar.css';
+import './styles/navbar.css';
 
 function App() {
   const [user, setUser] = useState(null);

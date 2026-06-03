@@ -69,14 +69,14 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
 
   // ========== ЗАГРУЗКА РЕПОСТОВ ==========
   const loadReposts = async () => {
-  try {
-    const token = api.getToken();
-    const data = await api.getUserReposts(profileId, token);
-    setReposts(data);
-  } catch (err) {
-    console.error('Error loading reposts:', err);
-  }
-};
+    try {
+      const token = api.getToken();
+      const data = await api.getUserReposts(profileId, token);
+      setReposts(data);
+    } catch (err) {
+      console.error('Error loading reposts:', err);
+    }
+  };
 
   // Объединение постов и репостов
   const allPosts = [...posts, ...reposts].sort((a, b) => 
@@ -157,6 +157,7 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
 
   // ========== ПОДПИСЧИКИ И ПОДПИСКИ ==========
   const loadFollowers = async () => {
+    if (!profile?.id) return;
     setLoadingFollowers(true);
     try {
       const token = api.getToken();
@@ -170,6 +171,7 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
   };
 
   const loadFollowing = async () => {
+    if (!profile?.id) return;
     setLoadingFollowers(true);
     try {
       const token = api.getToken();
@@ -223,15 +225,27 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
   };
 
   // ========== EFFECTS ==========
+  // Загрузка профиля, постов и репостов
   useEffect(() => {
-  if (!currentUser && !userId) {
-    navigate('/login');
-    return;
-  }
-  loadProfile();
-  loadPosts();
-  loadReposts();
-}, [profileId, currentUser, userId, navigate]);
+    if (!currentUser && !userId) {
+      navigate('/login');
+      return;
+    }
+    loadProfile();
+    loadPosts();
+    loadReposts();
+  }, [profileId, currentUser, userId, navigate]);
+
+  // Загрузка подписчиков и подписок сразу после загрузки профиля
+  useEffect(() => {
+    if (profile && profile.id) {
+      const token = api.getToken();
+      if (token) {
+        loadFollowers();
+        loadFollowing();
+      }
+    }
+  }, [profile?.id]);
 
   // ========== РЕНДЕР ==========
   if (loading) return <LoadingSpinner />;
@@ -307,15 +321,15 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
         </button>
         <button 
           className={`tab-button ${activeTab === 'followers' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('followers'); loadFollowers(); }}
+          onClick={() => { setActiveTab('followers'); }}
         >
-          Подписчики ({profile.followers_count || 0})
+          Подписчики ({followers.length})
         </button>
         <button 
           className={`tab-button ${activeTab === 'following' ? 'active' : ''}`}
-          onClick={() => { setActiveTab('following'); loadFollowing(); }}
+          onClick={() => { setActiveTab('following'); }}
         >
-          Подписки ({profile.following_count || 0})
+          Подписки ({following.length})
         </button>
       </div>
 
