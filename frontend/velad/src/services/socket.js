@@ -1,8 +1,6 @@
 // src/services/socket.js
 import { io } from 'socket.io-client';
-
-// Получаем URL из переменной окружения или используем значение по умолчанию
-const SOCKET_URL = process.env.REACT_APP_API_URL || 'https://velad-production.up.railway.app';
+import { API_URL } from '../config';
 
 class SocketService {
   constructor() {
@@ -16,7 +14,7 @@ class SocketService {
     }
 
     // Убираем /api из URL для сокетов
-    const baseUrl = SOCKET_URL.replace('/api', '');
+    const baseUrl = API_URL.replace('/api', '');
     
     this.socket = io(baseUrl, {
       query: { token },
