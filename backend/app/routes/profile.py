@@ -76,6 +76,9 @@ def get_profile():
 def get_profile_by_id(user_id):
     """Получение профиля по ID"""
     try:
+        print("=" * 60)
+        print(f"🔥 GET PROFILE BY ID: {user_id}")
+
         # Получаем данные пользователя
         user = db_service.execute_query("""
             SELECT u.id, u.username, u.display_name, u.avatar_url, u.bio, 
@@ -95,43 +98,45 @@ def get_profile_by_id(user_id):
         auth_header = request.headers.get('Authorization')
         is_following = False
 
-        print(f"🔍 Auth header: {auth_header[:50] if auth_header else 'None'}...")
+        print(f"🔍 Auth header exists: {auth_header is not None}")
 
         if auth_header and auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1]
-            print(f"🔍 Token: {token[:50]}...")
+            print(f"🔍 Token: {token[:30]}...")
+
             try:
-                import jwt
                 # Декодируем токен
                 payload = jwt.decode(
                     token,
                     current_app.config['SECRET_KEY'],
                     algorithms=['HS256']
                 )
-                print(f"🔍 Payload: {payload}")
-
                 current_user_id = payload.get('sub')
                 print(f"🔍 Current user ID from token: {current_user_id}")
                 print(f"🔍 Target user ID: {user_id}")
 
                 if current_user_id and str(current_user_id) != str(user_id):
-                    # Прямой SQL запрос для проверки подписки
-                    follow_check = db_service.execute_query("""
-                        SELECT id FROM follows 
+                    # ПРЯМОЙ SQL ЗАПРОС С ПРИВЕДЕНИЕМ ТИПОВ
+                    query = """
+                        SELECT COUNT(*) as count FROM follows 
                         WHERE follower_id = %s::uuid AND following_id = %s::uuid
-                    """, [current_user_id, user_id], fetch_one=True)
+                    """
+                    follow_check = db_service.execute_query(
+                        query,
+                        [str(current_user_id), str(user_id)],
+                        fetch_one=True
+                    )
 
                     print(f"🔍 Follow check result: {follow_check}")
-                    is_following = follow_check is not None
+                    is_following = follow_check and follow_check.get('count', 0) > 0
+                    print(f"🔍 is_following: {is_following}")
                 else:
-                    print("🔍 Same user or no current user")
+                    print("🔍 Same user - skipping follow check")
 
-            except jwt.ExpiredSignatureError:
-                print("❌ Token expired")
-            except jwt.InvalidTokenError as e:
-                print(f"❌ Invalid token: {e}")
             except Exception as e:
                 print(f"❌ Token decode error: {e}")
+                import traceback
+                traceback.print_exc()
         else:
             print("❌ No Authorization header")
 
@@ -151,7 +156,8 @@ def get_profile_by_id(user_id):
             'is_following': is_following
         }
 
-        print(f"🔍 Final result is_following: {is_following}")
+        print(f"✅ FINAL RESULT: is_following={is_following}")
+        print("=" * 60)
         return jsonify(result), 200
 
     except Exception as e:
