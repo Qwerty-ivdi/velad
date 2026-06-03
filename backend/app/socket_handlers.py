@@ -1,4 +1,5 @@
 # app/socket_handlers.py
+from flask import request
 from flask_socketio import emit, join_room, leave_room
 from flask_jwt_extended import decode_token
 from datetime import datetime
@@ -8,15 +9,18 @@ import uuid
 def register_socket_handlers(socketio, db_service):
     @socketio.on('connect')
     def handle_connect():
+        """Клиент подключился"""
         print(f"🔌 Client connected: {request.sid}")
         emit('connected', {'message': 'Connected to server'})
 
     @socketio.on('disconnect')
     def handle_disconnect():
+        """Клиент отключился"""
         print(f"🔌 Client disconnected: {request.sid}")
 
     @socketio.on('authenticate')
     def handle_authenticate(data):
+        """Аутентификация клиента"""
         token = data.get('token')
         if not token:
             emit('auth_error', {'error': 'No token provided'})
@@ -26,6 +30,10 @@ def register_socket_handlers(socketio, db_service):
             # Декодируем JWT
             payload = decode_token(token)
             user_id = payload.get('sub')
+
+            if not user_id:
+                emit('auth_error', {'error': 'Invalid token'})
+                return
 
             # Сохраняем user_id в сессии
             from flask import session
@@ -42,6 +50,7 @@ def register_socket_handlers(socketio, db_service):
 
     @socketio.on('send_message')
     def handle_send_message(data):
+        """Отправка сообщения"""
         try:
             token = data.get('token')
             receiver_id = data.get('receiver_id')
@@ -61,7 +70,7 @@ def register_socket_handlers(socketio, db_service):
 
             print(f"📨 Sending message from {sender_id} to {receiver_id}: {content}")
 
-            # Сохраняем в БД (здесь нужно реализовать сохранение)
+            # Сохраняем в БД
             message_id = uuid.uuid4()
             now = datetime.now()
 
@@ -121,4 +130,6 @@ def register_socket_handlers(socketio, db_service):
 
         except Exception as e:
             print(f"❌ Error sending message: {e}")
+            import traceback
+            traceback.print_exc()
             emit('error', {'error': str(e)})
