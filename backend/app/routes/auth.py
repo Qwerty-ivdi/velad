@@ -177,7 +177,7 @@ def twitch_login():
     session['twitch_oauth_state'] = state
 
     backend_url = get_backend_url()
-    redirect_uri = f"{backend_url}/api/auth/twitch/callback"
+    redirect_uri = f"{backend_url}/auth/twitch/callback"
 
     print("=" * 60)
     print("🔍 TWITCH LOGIN CALLED")
@@ -244,7 +244,7 @@ def twitch_callback():
 
     # Обмен кода на токены
     token_url = "https://id.twitch.tv/oauth2/token"
-    redirect_uri = f"{backend_url}/api/auth/twitch/callback"
+    redirect_uri = f"{backend_url}/auth/twitch/callback"
 
     token_data = {
         'client_id': current_app.config['TWITCH_CLIENT_ID'],
