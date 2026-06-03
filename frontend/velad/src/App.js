@@ -1,70 +1,85 @@
-import React, { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { api } from './lib/supabase'
-import LoginPage from './components/auth/LoginPage'
-import RegisterPage from './components/auth/RegisterPage'
-import ProfilePage from './components/profile/ProfilePage'
-import AuthCallback from './components/auth/AuthCallback'
-import Navbar from './components/layout/Navbar'
-import LoadingSpinner from './components/common/LoadingSpinner'
-import SearchPage from './components/search/SearchPage'
+// src/App.js
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { api } from './lib/supabase';
+import Navbar from './components/common/Navbar';
+import LoginPage from './components/auth/LoginPage';
+import RegisterPage from './components/auth/RegisterPage';
+import AuthCallback from './components/auth/AuthCallback';
+import ProfilePage from './components/profile/ProfilePage';
 import StreamsPage from './components/twitch/StreamsPage';
-import YearlyStats from './components/stats/YearlyStats';
 import TwitchPlayer from './components/twitch/TwitchPlayer';
-
+import YearlyStats from './components/stats/YearlyStats';
+import Messenger from './components/messenger/Messenger';  // 👈 ДОБАВЬТЕ
+import './styles/global.css';
 
 function App() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(null);
+  const [showMessenger, setShowMessenger] = useState(false);  // 👈 ДОБАВЬТЕ
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Проверяем сохраненного пользователя
-    const savedUser = api.getUser()
-    const token = api.getToken()
-    
-    if (savedUser && token) {
-      setUser(savedUser)
+    const token = api.getToken();
+    const savedUser = api.getUser();
+    if (token && savedUser) {
+      setUser(savedUser);
     }
-    setLoading(false)
-  }, [])
+    setLoading(false);
+  }, []);
+
+  const handleLogout = () => {
+    api.removeToken();
+    api.removeUser();
+    setUser(null);
+  };
+
+  const openMessenger = () => {
+    setShowMessenger(true);
+  };
+
+  const closeMessenger = () => {
+    setShowMessenger(false);
+  };
 
   if (loading) {
-    return <LoadingSpinner />
+    return <div className="loading-screen">Загрузка...</div>;
   }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
-        <Navbar user={user} setUser={setUser} />
-        <Routes>       
-          <Route path="/" element={
-            user ? <Navigate to="/profile" /> : <Navigate to="/login" />
-          } />
-          <Route path="/login" element={
-            user ? <Navigate to="/profile" /> : <LoginPage setUser={setUser} />
-          } />
-          <Route path="/register" element={
-            user ? <Navigate to="/profile" /> : <RegisterPage setUser={setUser} />
-          } />
-          <Route path="/auth/callback" element={<AuthCallback setUser={setUser} />} />
-          <Route path="/profile" element={
-            user ? <ProfilePage user={user} setUser={setUser} /> : <Navigate to="/login" />
-          } />
-          <Route path="/profile/:userId" element={<ProfilePage user={user} />} />
-          <Route path="/search" element={
-            user ? <SearchPage token={api.getToken()} /> : <Navigate to="/login" />
-          } />
-          <Route path="/streams" element={<StreamsPage />} />
-          <Route path="/stats" element={
-            user ? <YearlyStats token={api.getToken()} /> : <Navigate to="/login" />
-          } />
-          <Route path="/stream/:channel" element={
-            user ? <TwitchPlayer token={api.getToken()} /> : <Navigate to="/login" />
-          } />
-        </Routes>
+    <BrowserRouter>
+      <div className="app">
+        <Navbar 
+          user={user} 
+          onLogout={handleLogout} 
+          onOpenMessenger={openMessenger}  // 👈 ПЕРЕДАЙТЕ
+        />
+        <div className="main-content">
+          <Routes>
+            <Route path="/" element={<Navigate to="/streams" />} />
+            <Route path="/login" element={<LoginPage setUser={setUser} />} />
+            <Route path="/register" element={<RegisterPage setUser={setUser} />} />
+            <Route path="/auth/callback" element={<AuthCallback setUser={setUser} />} />
+            <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} />} />
+            <Route path="/profile/:userId" element={<ProfilePage user={user} setUser={setUser} />} />
+            <Route path="/streams" element={<StreamsPage />} />
+            <Route path="/stream/:channel" element={<TwitchPlayer token={api.getToken()} currentUser={user} />} />
+            <Route path="/stats" element={<YearlyStats token={api.getToken()} user={user} />} />
+          </Routes>
+        </div>
+        
+        {/* Глобальный мессенджер */}
+        {showMessenger && user && (
+          <Messenger
+            currentUserId={user.id}
+            otherUserId={null}  // null означает, что показываем список диалогов
+            otherUserName={null}
+            otherUserAvatar={null}
+            onClose={closeMessenger}
+          />
+        )}
       </div>
-    </Router>
-  )
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;

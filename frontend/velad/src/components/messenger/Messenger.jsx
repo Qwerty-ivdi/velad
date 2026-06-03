@@ -157,11 +157,11 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
 
   // При открытии диалога с otherUserId
   useEffect(() => {
-    const initConversation = async () => {
+      const initConversation = async () => {
       if (otherUserId) {
         const convs = await loadConversations();
-        const existing = convs && Array.isArray(convs) ? convs.find(c => c.other_user_id === otherUserId) : null;
-
+        const existing = convs.length > 0 ? convs.find(c => c.other_user_id === otherUserId) : null;
+        
         if (existing) {
           setSelectedConversation(existing);
           await loadMessages(existing.id);
@@ -175,26 +175,26 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
             },
             body: JSON.stringify({ other_user_id: otherUserId })
           });
-          const data = await response.json();
           
-          const newConv = {
-            id: data.id,
-            other_user_id: otherUserId,
-            other_user_name: otherUserName,
-            other_user_avatar: otherUserAvatar,
-            last_message: '',
-            unread_count: 0
-          };
-          
-          setSelectedConversation(newConv);
+          if (response.ok) {
+            const data = await response.json();
+            const newConv = {
+              id: data.id,
+              other_user_id: otherUserId,
+              other_user_name: otherUserName,
+              other_user_avatar: otherUserAvatar,
+              last_message: '',
+              unread_count: 0
+            };
+            setSelectedConversation(newConv);
+          }
         }
         setLoading(false);
       }
     };
     
     if (otherUserId) {
-      const convs = await loadConversations(); // Здесь теперь всегда массив
-      const existing = convs.length > 0 ? convs.find(c => c.other_user_id === otherUserId) : null;
+      initConversation();
     }
   }, [otherUserId]);
 
@@ -303,10 +303,17 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
             </form>
           </div>
         ) : (
-          <div className="no-conversation-selected">
-            <p>Выберите диалог, чтобы начать общение</p>
-          </div>
-        )}
+  <div className="no-conversation-selected">
+    {conversations.length === 0 ? (
+      <div className="empty-state">
+        <p>У вас пока нет диалогов</p>
+        <p className="hint">Напишите кому-нибудь первым!</p>
+      </div>
+    ) : (
+      <p>Выберите диалог, чтобы начать общение</p>
+    )}
+  </div>
+)}
       </div>
     </div>
   );
