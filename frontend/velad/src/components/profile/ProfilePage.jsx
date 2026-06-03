@@ -218,29 +218,31 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
 
   // ========== ПОДПИСКА/ОТПИСКА ==========
   const handleFollow = async () => {
-    try {
-      const token = api.getToken();
-      if (profile?.is_following) {
-        await api.unfollowUser(token, profileId);
-        setProfile(prev => ({ 
-          ...prev, 
-          is_following: false, 
-          followers_count: (prev.followers_count || 0) - 1 
-        }));
-        cache.invalidateProfile(profileId);
-      } else {
-        await api.followUser(token, profileId);
-        setProfile(prev => ({ 
-          ...prev, 
-          is_following: true, 
-          followers_count: (prev.followers_count || 0) + 1 
-        }));
-        cache.invalidateProfile(profileId);
-      }
-    } catch (err) {
-      console.error('Error following/unfollowing:', err);
+  try {
+    const token = api.getToken();
+    const wasFollowing = profile?.is_following;
+    
+    setProfile(prev => ({ 
+      ...prev, 
+      is_following: !wasFollowing,
+      followers_count: (prev.followers_count || 0) + (wasFollowing ? -1 : 1)
+    }));
+    
+    if (wasFollowing) {
+      await api.unfollowUser(token, profileId);
+    } else {
+      await api.followUser(token, profileId);
     }
-  };
+  } catch (err) {
+    // Откат при ошибке
+    setProfile(prev => ({ 
+      ...prev, 
+      is_following: !prev.is_following,
+      followers_count: (prev.followers_count || 0) + (prev.is_following ? 1 : -1)
+    }));
+    console.error('Error following/unfollowing:', err);
+  }
+};
 
   // ========== EFFECTS ==========
   // Загрузка профиля, постов и репостов

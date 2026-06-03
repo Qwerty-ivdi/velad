@@ -5,7 +5,7 @@ import { FaTwitch, FaCalendar, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
 const ProfileHeader = ({ 
   profile, 
   isOwnProfile, 
-  isFollowing, 
+  isFollowing,  // 👈 ИСПОЛЬЗУЕМ ПРЯМО ИЗ ПРОПСОВ
   followersCount, 
   followingCount, 
   onFollow, 
@@ -19,12 +19,6 @@ const ProfileHeader = ({
       day: 'numeric'
     });
   };
-
-  // Отладка
-  useEffect(() => {
-    console.log('ProfileHeader - isFollowing:', isFollowing);
-    console.log('ProfileHeader - profile.id:', profile?.id);
-  }, [isFollowing, profile]);
 
   return (
     <div className="profile-header">
