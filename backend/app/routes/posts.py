@@ -28,10 +28,36 @@ def upload_image():
         return jsonify({'error': 'Требуется авторизация'}), 401
 
     token = auth_header.split(' ')[1]
-    user = get_user_from_token(token)
 
-    if not user:
-        return jsonify({'error': 'Неверный токен'}), 401
+    # Исправляем получение пользователя из токена
+    try:
+        import jwt
+        payload = jwt.decode(
+            token,
+            current_app.config['SECRET_KEY'],
+            algorithms=['HS256']
+        )
+        user_id = payload.get('sub')
+
+        if not user_id:
+            return jsonify({'error': 'Неверный токен'}), 401
+
+        user = db_service.execute_query(
+            "SELECT id, username, display_name, avatar_url FROM users WHERE id = %s",
+            [user_id], fetch_one=True
+        )
+
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+    except jwt.ExpiredSignatureError:
+        return jsonify({'error': 'Token expired'}), 401
+    except jwt.InvalidTokenError as e:
+        print(f"Invalid token: {e}")
+        return jsonify({'error': 'Invalid token'}), 401
+    except Exception as e:
+        print(f"Error decoding token: {e}")
+        return jsonify({'error': 'Authentication failed'}), 401
 
     if 'file' not in request.files:
         return jsonify({'error': 'Нет файла'}), 400
@@ -57,7 +83,7 @@ def upload_image():
     # Сохраняем файл
     file.save(str(filepath))
 
-
+    # Возвращаем полный URL
     backend_url = os.environ.get('BACKEND_URL', 'https://velad-production.up.railway.app')
     file_url = f"{backend_url}/uploads/{filename}"
     print(f"📎 File URL: {file_url}")
@@ -73,18 +99,17 @@ def get_user_from_token(token):
     import jwt
     try:
         payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        user_id = payload.get('user_id')
-
-        user = db_service.execute_query(
-            "SELECT id, username, display_name, avatar_url FROM users WHERE id = %s",
-            [user_id],
-            fetch_one=True
-        )
-        return user
+        user_id = payload.get('sub')
+        if user_id:
+            user = db_service.execute_query(
+                "SELECT id, username, display_name, avatar_url FROM users WHERE id = %s",
+                [user_id], fetch_one=True
+            )
+            return user
+        return None
     except Exception as e:
         print(f"Token decode error: {e}")
         return None
-
 
 @posts_bp.route('/posts', methods=['POST'])
 def create_post():
