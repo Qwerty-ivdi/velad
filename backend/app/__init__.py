@@ -1,6 +1,7 @@
 # app/__init__.py
 from flask import Flask, request
 from flask_cors import CORS
+from flask import send_from_directory
 from flask_jwt_extended import JWTManager
 from flask_socketio import SocketIO
 from app.routes.stats import stats_bp
@@ -54,5 +55,17 @@ def create_app():
     @app.route('/health', methods=['GET'])
     def health_check():
         return {'status': 'ok'}, 200
+
+    @app.route('/uploads/<path:filename>')
+    def uploaded_file(filename):
+        import os
+        from pathlib import Path
+
+        if os.environ.get('RAILWAY_ENVIRONMENT'):
+            upload_folder = Path('/tmp/uploads')
+        else:
+            upload_folder = Path(__file__).resolve().parent.parent / 'uploads'
+
+        return send_from_directory(upload_folder, filename)
 
     return app, socketio

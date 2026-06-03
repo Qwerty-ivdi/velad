@@ -22,14 +22,19 @@ def allowed_file(filename):
 @posts_bp.route('/upload', methods=['POST'])
 def upload_image():
     """Загрузка изображения"""
+    print("=" * 50)
+    print("🔥 UPLOAD IMAGE CALLED")
+
     auth_header = request.headers.get('Authorization')
+    print(f"🔍 Auth header: {auth_header[:50] if auth_header else 'None'}...")
 
     if not auth_header or not auth_header.startswith('Bearer '):
         return jsonify({'error': 'Требуется авторизация'}), 401
 
     token = auth_header.split(' ')[1]
+    print(f"🔍 Token: {token[:50]}...")
 
-    # Исправляем получение пользователя из токена
+    # Декодируем токен
     try:
         import jwt
         payload = jwt.decode(
@@ -38,6 +43,7 @@ def upload_image():
             algorithms=['HS256']
         )
         user_id = payload.get('sub')
+        print(f"🔍 User ID from token: {user_id}")
 
         if not user_id:
             return jsonify({'error': 'Неверный токен'}), 401
@@ -50,19 +56,22 @@ def upload_image():
         if not user:
             return jsonify({'error': 'User not found'}), 404
 
+        print(f"✅ User found: {user['username']}")
+
     except jwt.ExpiredSignatureError:
         return jsonify({'error': 'Token expired'}), 401
     except jwt.InvalidTokenError as e:
-        print(f"Invalid token: {e}")
+        print(f"❌ Invalid token: {e}")
         return jsonify({'error': 'Invalid token'}), 401
     except Exception as e:
-        print(f"Error decoding token: {e}")
+        print(f"❌ Error decoding token: {e}")
         return jsonify({'error': 'Authentication failed'}), 401
 
     if 'file' not in request.files:
         return jsonify({'error': 'Нет файла'}), 400
 
     file = request.files['file']
+    print(f"📁 File name: {file.filename}")
 
     if file.filename == '':
         return jsonify({'error': 'Файл не выбран'}), 400
@@ -70,10 +79,19 @@ def upload_image():
     if not allowed_file(file.filename):
         return jsonify({'error': 'Неподдерживаемый формат файла. Используйте: png, jpg, jpeg, gif, webp'}), 400
 
-    # Создаем папку если нет
-    BASE_DIR = Path(__file__).resolve().parent.parent.parent
-    UPLOAD_FOLDER = BASE_DIR / 'uploads'
+    # Создаем папку для загрузок (используем Railway persistent disk или /tmp)
+    import os
+    from pathlib import Path
+
+    # На Railway используем /tmp для временных файлов
+    if os.environ.get('RAILWAY_ENVIRONMENT'):
+        UPLOAD_FOLDER = Path('/tmp/uploads')
+    else:
+        BASE_DIR = Path(__file__).resolve().parent.parent.parent
+        UPLOAD_FOLDER = BASE_DIR / 'uploads'
+
     UPLOAD_FOLDER.mkdir(exist_ok=True)
+    print(f"📁 Upload folder: {UPLOAD_FOLDER}")
 
     # Генерируем уникальное имя
     ext = file.filename.rsplit('.', 1)[1].lower()
@@ -82,8 +100,10 @@ def upload_image():
 
     # Сохраняем файл
     file.save(str(filepath))
+    print(f"💾 File saved: {filepath}")
+    print(f"📏 File size: {filepath.stat().st_size} bytes")
 
-    # Возвращаем полный URL
+    # Возвращаем URL
     backend_url = os.environ.get('BACKEND_URL', 'https://velad-production.up.railway.app')
     file_url = f"{backend_url}/uploads/{filename}"
     print(f"📎 File URL: {file_url}")
