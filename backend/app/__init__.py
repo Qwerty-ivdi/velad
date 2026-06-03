@@ -1,3 +1,4 @@
+# app/__init__.py
 from flask import Flask, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -22,24 +23,14 @@ def create_app():
     app.config.from_object(Config)
     app.config['SECRET_KEY'] = Config.SECRET_KEY
 
-    # Настройка CORS
-    CORS(app,
-         origins="*",
-         supports_credentials=True,
-         allow_headers=['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'])
+    CORS(app, origins="*", supports_credentials=True)
 
-    # Инициализация БД
     db_service.init_app(app)
 
-    # Инициализация SocketIO с eventlet
+    # Используем threading вместо eventlet для избежания DNS проблем
     socketio = SocketIO(app,
                         cors_allowed_origins="*",
-                        logger=True,
-                        engineio_logger=True,
-                        async_mode='eventlet',
-                        ping_timeout=60,
-                        ping_interval=25)
+                        async_mode='threading')
 
     # Регистрация Blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -51,23 +42,13 @@ def create_app():
     app.register_blueprint(twitch_webhook_bp)
     app.register_blueprint(user_bp, url_prefix='/api')
 
-    # Регистрация WebSocket обработчиков
     register_socket_handlers(socketio, db_service)
     twitch_service.init_app(app)
 
-    # Инициализация JWT
     jwt = JWTManager(app)
 
     @app.route('/health', methods=['GET'])
     def health_check():
         return {'status': 'ok', 'message': 'Velad API is running'}, 200
-
-    @app.route('/ready', methods=['GET'])
-    def ready_check():
-        try:
-            db_service.execute_query("SELECT 1")
-            return {'status': 'ready'}, 200
-        except Exception as e:
-            return {'status': 'not ready', 'error': str(e)}, 500
 
     return app, socketio
