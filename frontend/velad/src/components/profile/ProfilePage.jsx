@@ -87,24 +87,19 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
 
   // ========== ЗАГРУЗКА ПРОФИЛЯ ==========
   const loadProfile = async () => {
-    try {
-      setLoading(true);
-      const cachedProfile = cache.getProfile(profileId);
-      if (cachedProfile) {
-        console.log('📦 Using cached profile');
-        setProfile(cachedProfile);
-        setLoading(false);
-        fetchProfileInBackground();
-        return;
-      }
-      await fetchProfileInBackground();
-    } catch (err) {
-      console.error('Error loading profile:', err);
-      setLoading(false);
-    }
-  };
+  try {
+    setLoading(true);
+    
+    // ПОЛНОСТЬЮ ОТКЛЮЧАЕМ КЭШ - всегда запрашиваем свежие данные
+    await fetchProfileInBackground();
+    
+  } catch (err) {
+    console.error('Error loading profile:', err);
+    setLoading(false);
+  }
+};
 
-  const fetchProfileInBackground = async () => {
+const fetchProfileInBackground = async () => {
   try {
     const token = api.getToken();
     let profileData;
@@ -112,14 +107,20 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
     if (isOwnProfile) {
       profileData = await api.getProfile(token);
     } else {
-      profileData = await api.getUserById(profileId);
+      // Запрашиваем свежие данные напрямую, как в вашем тесте
+      const response = await fetch(`${API_URL}/profile/${profileId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      profileData = await response.json();
     }
     
-    console.log('🔄 Profile refreshed:', profileData);
-    console.log('🔄 is_following:', profileData.is_following);
+    console.log('✅ Profile loaded (fresh):', profileData);
+    console.log('✅ is_following:', profileData.is_following);
     
     setProfile(profileData);
+    // Обновляем кэш новыми данными
     cache.setProfile(profileId, profileData);
+    
     setEditForm({
       display_name: profileData.display_name || '',
       bio: profileData.bio || '',
