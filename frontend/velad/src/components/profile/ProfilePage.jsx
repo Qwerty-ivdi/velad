@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../lib/supabase';
+import { API_URL } from '../../config';
 import Post from '../posts/Post';
 import CreatePost from '../posts/CreatePost';
 import Messenger from '../messenger/Messenger';
@@ -90,7 +91,6 @@ const ProfilePage = ({ user: currentUser, setUser }) => {
   try {
     setLoading(true);
     
-    // ПОЛНОСТЬЮ ОТКЛЮЧАЕМ КЭШ - всегда запрашиваем свежие данные
     await fetchProfileInBackground();
     
   } catch (err) {
