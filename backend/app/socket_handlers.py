@@ -8,7 +8,7 @@ import uuid
 
 def register_socket_handlers(socketio, db_service):
     @socketio.on('connect')
-    def handle_connect():
+    def handle_connect(data=None):
         """Клиент подключился"""
         print(f"🔌 Client connected: {request.sid}")
         emit('connected', {'message': 'Connected to server'})
@@ -34,10 +34,6 @@ def register_socket_handlers(socketio, db_service):
             if not user_id:
                 emit('auth_error', {'error': 'Invalid token'})
                 return
-
-            # Сохраняем user_id в сессии
-            from flask import session
-            session['user_id'] = user_id
 
             # Присоединяем к комнате пользователя
             join_room(user_id)
