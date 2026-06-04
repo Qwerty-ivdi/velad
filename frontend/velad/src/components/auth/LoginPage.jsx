@@ -1,40 +1,58 @@
-import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { api } from '../../lib/supabase'  // ← импорт api
-import { FaTwitch, FaEnvelope, FaLock } from 'react-icons/fa'
-import '../../styles/auth.css'
+// src/components/auth/LoginPage.jsx
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { api, twitchAuth } from '../../lib/supabase';
+import { FaTwitch, FaEnvelope, FaLock } from 'react-icons/fa';
+import '../../styles/auth.css';
 
-const LoginPage = ({ setUser }) => {  // ← добавляем setUser
-  const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+const LoginPage = ({ setUser }) => {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [twitchLoading, setTwitchLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleEmailLogin = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
     
     try {
-      const result = await api.login({ email, password })
-      api.setToken(result.access_token)
-      api.setUser(result.user)
-      if (setUser) {
-        setUser(result.user)
-      }
-      navigate('/profile')
+      const result = await api.login({ email, password });
+      api.setToken(result.access_token);
+      api.setUser(result.user);
+      setUser(result.user);
+      navigate('/profile');
     } catch (err) {
-      setError(err.message)
+      setError(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const handleTwitchLogin = async () => {
-    setLoading(true)
-    window.location.href = 'http://localhost:5000/api/auth/twitch/auth'
-  }
+  // Обновлённая функция с popup и состоянием загрузки
+  const handleTwitchLogin = () => {
+    setTwitchLoading(true);
+    
+    twitchAuth.login(() => {
+      // После закрытия popup проверяем, авторизован ли пользователь
+      const token = api.getToken();
+      if (token) {
+        window.location.reload();
+      } else {
+        setTwitchLoading(false);
+      }
+    });
+    
+    // Слушаем сообщение от popup после успешного входа
+    window.addEventListener('message', (event) => {
+      if (event.data === 'twitch_auth_success') {
+        setTwitchLoading(false);
+        window.location.reload();
+      }
+    });
+  };
 
   return (
     <div className="auth-container">
@@ -84,12 +102,16 @@ const LoginPage = ({ setUser }) => {  // ← добавляем setUser
 
         <div className="divider"><span>Или продолжить с</span></div>
 
-        <button onClick={handleTwitchLogin} disabled={loading} className="btn btn-twitch">
-          <FaTwitch /> Войти через Twitch
+        <button 
+          onClick={handleTwitchLogin} 
+          disabled={twitchLoading} 
+          className={`btn btn-twitch ${twitchLoading ? 'loading' : ''}`}
+        >
+          <FaTwitch /> {twitchLoading ? 'Ожидание...' : 'Войти через Twitch'}
         </button>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default LoginPage
+export default LoginPage;

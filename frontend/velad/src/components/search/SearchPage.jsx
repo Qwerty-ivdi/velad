@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/supabase'
 import { FaSearch, FaUserPlus, FaUserCheck } from 'react-icons/fa'

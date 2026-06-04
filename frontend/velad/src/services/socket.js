@@ -1,3 +1,4 @@
+// src/services/socket.js
 import { io } from 'socket.io-client';
 
 class SocketService {
@@ -11,27 +12,38 @@ class SocketService {
       return this.socket;
     }
 
-    this.socket = io('http://localhost:5000', {
-      query: { token },
-      transports: ['websocket'],
+    const isProduction = window.location.hostname !== 'localhost';
+    const socketUrl = isProduction 
+      ? 'https://velad-production.up.railway.app' 
+      : 'http://localhost:5000';
+    
+    console.log('🔌 Connecting to WebSocket at:', socketUrl);
+    
+    // Используем polling если websocket не работает
+    this.socket = io(socketUrl, {
+      transports: ['polling', 'websocket'],  // polling как fallback
       reconnection: true,
       reconnectionAttempts: 10,
-      reconnectionDelay: 1000
+      reconnectionDelay: 1000,
+      timeout: 20000
     });
 
     this.socket.on('connect', () => {
       console.log('✅ WebSocket connected');
+      this.socket.emit('authenticate', { token });
+    });
+
+    this.socket.on('authenticated', (data) => {
+      console.log('✅ Authenticated:', data);
       this.connected = true;
+    });
+
+    this.socket.on('auth_error', (error) => {
+      console.error('❌ Auth error:', error);
     });
 
     this.socket.on('connect_error', (error) => {
       console.error('❌ WebSocket connection error:', error);
-      this.connected = false;
-    });
-
-    this.socket.on('disconnect', () => {
-      console.log('🔌 WebSocket disconnected');
-      this.connected = false;
     });
 
     return this.socket;
@@ -49,10 +61,10 @@ class SocketService {
     return this.socket;
   }
 
-  // Добавляем метод isConnected
   isConnected() {
     return this.connected && this.socket?.connected;
   }
 }
 
-export default new SocketService();
+const socketService = new SocketService();
+export default socketService;

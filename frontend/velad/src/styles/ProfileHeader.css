@@ -1,0 +1,442 @@
+/* src/styles/ProfileHeader.css */
+
+/* Основной контейнер профиля */
+.profile-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Шапка профиля */
+.profile-header {
+  background: #1e1e2e;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Баннер */
+.profile-banner {
+  height: 200px;
+  background: linear-gradient(135deg, #9146FF 0%, #772ce8 100%);
+  position: relative;
+}
+
+.profile-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Аватар */
+.profile-avatar-wrapper {
+  position: relative;
+  margin-top: -64px;
+  margin-left: 32px;
+  display: inline-block;
+}
+
+.profile-avatar {
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  border: 4px solid #1e1e2e;
+  background: #2a2a3e;
+  object-fit: cover;
+}
+
+.profile-live-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 16px;
+  height: 16px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  border: 2px solid #1e1e2e;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* Информация о пользователе */
+.profile-info-wrapper {
+  padding: 0 32px 24px 32px;
+}
+
+.profile-info-main {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.profile-name-section {
+  flex: 1;
+}
+
+.profile-name {
+  font-size: 28px;
+  font-weight: bold;
+  color: white;
+  margin: 0 0 4px 0;
+}
+
+.profile-username {
+  font-size: 16px;
+  color: #a0a0b0;
+  margin: 0;
+}
+
+.profile-bio {
+  color: #c0c0d0;
+  margin: 12px 0;
+  line-height: 1.5;
+}
+
+/* Кнопки действий */
+.profile-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-edit,
+.btn-follow,
+.btn-message {
+  padding: 8px 20px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-edit {
+  background: #2a2a3e;
+  color: white;
+}
+
+.btn-edit:hover {
+  background: #3a3a4e;
+}
+
+.btn-follow {
+  background: #9146FF;
+  color: white;
+}
+
+.btn-follow:hover {
+  background: #772ce8;
+}
+
+.btn-follow.following {
+  background: #2a2a3e;
+  border: 1px solid #9146FF;
+}
+
+.btn-follow.following:hover {
+  background: #3a3a4e;
+}
+
+.btn-message {
+  background: #2a2a3e;
+  color: white;
+}
+
+.btn-message:hover {
+  background: #3a3a4e;
+}
+
+/* Статистика */
+.profile-stats {
+  display: flex;
+  gap: 32px;
+  margin: 20px 0;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: bold;
+  color: white;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #a0a0b0;
+}
+
+.stat-divider {
+  color: #a0a0b0;
+  font-size: 18px;
+}
+
+/* Информационные строки */
+.profile-info-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 20px;
+  font-size: 14px;
+  color: #a0a0b0;
+}
+
+.profile-info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-info-item a {
+  color: #a0a0b0;
+  text-decoration: none;
+}
+
+.profile-info-item a:hover {
+  color: #9146FF;
+}
+
+/* Вкладки */
+.profile-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #2a2a3e;
+  padding-bottom: 8px;
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #a0a0b0;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 24px;
+}
+
+.tab-button:hover {
+  color: white;
+  background: #2a2a3e;
+}
+
+.tab-button.active {
+  color: #9146FF;
+  background: rgba(145, 70, 255, 0.1);
+}
+
+/* Контент вкладок */
+.tab-content {
+  min-height: 300px;
+}
+
+/* Списки */
+.posts-list,
+.followers-list,
+.following-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.empty-posts,
+.empty-list {
+  text-align: center;
+  padding: 48px;
+  color: #a0a0b0;
+  background: #1e1e2e;
+  border-radius: 16px;
+}
+
+/* Модальное окно */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #1e1e2e;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #2a2a3e;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: white;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #a0a0b0;
+}
+
+.modal-close:hover {
+  color: white;
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #2a2a3e;
+}
+
+/* Формы */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: white;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: #2a2a3e;
+  border: 1px solid #3a3a4e;
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #9146FF;
+}
+
+textarea.form-input {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.btn-secondary {
+  padding: 8px 20px;
+  background: #2a2a3e;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  padding: 8px 20px;
+  background: #9146FF;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background: #772ce8;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 12px;
+  }
+  
+  .profile-info-main {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .profile-avatar-wrapper {
+    margin-top: -48px;
+    margin-left: 16px;
+  }
+  
+  .profile-avatar {
+    width: 96px;
+    height: 96px;
+  }
+  
+  .profile-info-wrapper {
+    padding: 0 16px 16px 16px;
+  }
+  
+  .profile-name {
+    font-size: 22px;
+  }
+  
+  .profile-stats {
+    gap: 20px;
+  }
+  
+  .profile-actions {
+    width: 100%;
+  }
+  
+  .btn-edit,
+  .btn-follow,
+  .btn-message {
+    flex: 1;
+    text-align: center;
+  }
+  
+  .profile-tabs {
+    gap: 4px;
+  }
+  
+  .tab-button {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}

@@ -1,13 +1,14 @@
 from flask import Blueprint, request, jsonify, current_app
 from app.services.db_service import db_service
+from app.config import Config
 import uuid
 from datetime import datetime
 import os
 import base64
+import json
 from pathlib import Path
 
 # Настройки для загрузки
-UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
@@ -18,72 +19,112 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def ensure_array(value):
+    """Гарантирует, что значение является массивом"""
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        # Пробуем распарсить как JSON
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                return parsed
+            return [parsed] if parsed else []
+        except:
+            # Если не JSON, возможно это уже data:image строка
+            if value.startswith('data:image'):
+                return [value]
+            return []
+    if isinstance(value, dict):
+        return list(value.values()) if value else []
+    return []
+
+
 @posts_bp.route('/upload', methods=['POST'])
 def upload_image():
-    """Загрузка изображения"""
-    auth_header = request.headers.get('Authorization')
+    """Загрузка изображения — сохраняем как base64"""
+    print("=" * 50)
+    print("🔥 UPLOAD IMAGE CALLED")
 
+    auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return jsonify({'error': 'Требуется авторизация'}), 401
 
     token = auth_header.split(' ')[1]
-    user = get_user_from_token(token)
 
-    if not user:
-        return jsonify({'error': 'Неверный токен'}), 401
+    try:
+        import jwt
+        payload = jwt.decode(
+            token,
+            current_app.config['SECRET_KEY'],
+            algorithms=['HS256']
+        )
+        user_id = payload.get('sub')
+        if not user_id:
+            return jsonify({'error': 'Неверный токен'}), 401
+
+        user = db_service.execute_query(
+            "SELECT id, username, display_name, avatar_url FROM users WHERE id = %s",
+            [user_id], fetch_one=True
+        )
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+    except Exception as e:
+        print(f"❌ Error decoding token: {e}")
+        return jsonify({'error': 'Authentication failed'}), 401
 
     if 'file' not in request.files:
         return jsonify({'error': 'Нет файла'}), 400
 
     file = request.files['file']
-
     if file.filename == '':
         return jsonify({'error': 'Файл не выбран'}), 400
 
     if not allowed_file(file.filename):
-        return jsonify({'error': 'Неподдерживаемый формат файла. Используйте: png, jpg, jpeg, gif, webp'}), 400
+        return jsonify({'error': 'Неподдерживаемый формат файла'}), 400
 
-    # Создаем папку если нет
-    BASE_DIR = Path(__file__).resolve().parent.parent.parent
-    UPLOAD_FOLDER = BASE_DIR / 'uploads'
-    UPLOAD_FOLDER.mkdir(exist_ok=True)
+    file_data = file.read()
+    file_size = len(file_data)
 
-    # Генерируем уникальное имя
+    if file_size > MAX_FILE_SIZE:
+        return jsonify({'error': f'Файл слишком большой. Максимум {MAX_FILE_SIZE // (1024 * 1024)}MB'}), 400
+
     ext = file.filename.rsplit('.', 1)[1].lower()
-    filename = f"{user['id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.{ext}"
-    filepath = UPLOAD_FOLDER / filename
+    mime_map = {
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'gif': 'image/gif',
+        'webp': 'image/webp'
+    }
+    mime_type = mime_map.get(ext, 'image/jpeg')
 
-    # Сохраняем файл
-    file.save(str(filepath))
+    base64_string = base64.b64encode(file_data).decode('utf-8')
+    data_url = f"data:{mime_type};base64,{base64_string}"
 
-    # Проверяем, что файл создан
-    if filepath.exists():
-        print(f"✅ File saved: {filepath}, size: {filepath.stat().st_size} bytes")
-    else:
-        print(f"❌ File not saved: {filepath}")
-
-    # Возвращаем полный URL
-    file_url = f"http://localhost:5000/uploads/{filename}"
-    print(f"📎 File URL: {file_url}")
+    print(f"✅ Image converted to base64, size: {len(data_url)} chars")
 
     return jsonify({
-        'url': file_url,
-        'filename': filename
+        'url': data_url,
+        'filename': file.filename
     }), 200
+
 
 def get_user_from_token(token):
     """Получение пользователя из JWT токена"""
     import jwt
     try:
         payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        user_id = payload.get('user_id')
-
-        user = db_service.execute_query(
-            "SELECT id, username, display_name, avatar_url FROM users WHERE id = %s",
-            [user_id],
-            fetch_one=True
-        )
-        return user
+        user_id = payload.get('sub')
+        if user_id:
+            user = db_service.execute_query(
+                "SELECT id, username, display_name, avatar_url FROM users WHERE id = %s",
+                [user_id], fetch_one=True
+            )
+            return user
+        return None
     except Exception as e:
         print(f"Token decode error: {e}")
         return None
@@ -108,22 +149,29 @@ def create_post():
     post_type = data.get('post_type', 'text')
     media_urls = data.get('media_urls', [])
 
+    # Гарантируем, что media_urls - массив
+    if not isinstance(media_urls, list):
+        media_urls = [media_urls] if media_urls else []
+
     if not content and not media_urls:
         return jsonify({'error': 'Пост не может быть пустым'}), 400
 
     post_id = uuid.uuid4()
     now = datetime.now()
 
+    # Преобразуем массив в JSON строку для PostgreSQL
+    media_json = json.dumps(media_urls)
+
     query = """
         INSERT INTO posts (id, user_id, content, post_type, media_urls, created_at, updated_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s::jsonb, %s, %s)
         RETURNING id, user_id, content, post_type, media_urls, created_at, updated_at
     """
 
     try:
         post = db_service.execute_query(
             query,
-            [str(post_id), user['id'], content, post_type, media_urls, now, now],
+            [str(post_id), user['id'], content, post_type, media_json, now, now],
             fetch_one=True
         )
 
@@ -137,12 +185,15 @@ def create_post():
             fetch_one=True
         )
 
+        # Нормализуем media_urls в ответе
+        returned_media = ensure_array(post.get('media_urls'))
+
         response_post = {
             'id': post['id'],
             'user_id': post['user_id'],
             'content': post['content'],
             'post_type': post['post_type'],
-            'media_urls': post['media_urls'],
+            'media_urls': returned_media,
             'created_at': post['created_at'].isoformat() if post['created_at'] else None,
             'updated_at': post['updated_at'].isoformat() if post['updated_at'] else None,
             'username': full_user['username'],
@@ -160,6 +211,7 @@ def create_post():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
 
 @posts_bp.route('/posts/<post_id>', methods=['GET'])
 def get_post(post_id):
@@ -182,6 +234,9 @@ def get_post(post_id):
 
         if not post:
             return jsonify({'error': 'Пост не найден'}), 404
+
+        # Нормализуем media_urls
+        post['media_urls'] = ensure_array(post.get('media_urls'))
 
         # Проверяем, поставил ли текущий пользователь лайк
         auth_header = request.headers.get('Authorization')
@@ -209,7 +264,6 @@ def get_user_posts(user_id):
         limit = request.args.get('limit', 20, type=int)
         offset = request.args.get('offset', 0, type=int)
 
-        # Получаем обычные посты
         posts = db_service.execute_query("""
             SELECT 
                 p.id, p.user_id, p.content, p.post_type, p.media_urls,
@@ -226,6 +280,10 @@ def get_user_posts(user_id):
             ORDER BY p.created_at DESC
             LIMIT %s OFFSET %s
         """, [user_id, limit, offset], fetch_all=True)
+
+        # Нормализуем media_urls для каждого поста
+        for post in posts:
+            post['media_urls'] = ensure_array(post.get('media_urls'))
 
         return jsonify(posts or []), 200
 
@@ -253,7 +311,6 @@ def get_feed():
     limit = request.args.get('limit', 20, type=int)
     offset = request.args.get('offset', 0, type=int)
 
-    # Получаем ID пользователей, на которых подписан текущий пользователь
     following = db_service.execute_query(
         "SELECT following_id FROM follows WHERE follower_id = %s",
         [user['id']], fetch_all=True
@@ -265,7 +322,6 @@ def get_feed():
 
     placeholders = ','.join(['%s'] * len(following_ids))
 
-    # Запрос для получения постов и репостов от подписок
     query = f"""
         SELECT 
             p.id as post_id,
@@ -287,6 +343,7 @@ def get_feed():
             ou.display_name as original_author_display_name,
             ou.avatar_url as original_author_avatar,
             op.content as original_content,
+            op.media_urls as original_media_urls,
             CASE WHEN pl.id IS NOT NULL THEN true ELSE false END as is_liked,
             CASE WHEN r2.id IS NOT NULL THEN true ELSE false END as is_reposted
         FROM posts p
@@ -326,7 +383,8 @@ def get_feed():
                 'original_author_name': row['original_author_display_name'],
                 'original_author_username': row['original_author_username'],
                 'original_author_avatar': row['original_author_avatar'],
-                'original_content': row['original_content']
+                'original_content': row['original_content'],
+                'original_media_urls': ensure_array(row.get('original_media_urls'))
             })
         else:
             posts.append({
@@ -334,7 +392,7 @@ def get_feed():
                 'user_id': row['author_id'],
                 'type': 'post',
                 'content': row['content'],
-                'media_urls': row['media_urls'] or [],
+                'media_urls': ensure_array(row.get('media_urls')),
                 'likes_count': row['likes_count'] or 0,
                 'comments_count': row['comments_count'] or 0,
                 'reposts_count': row['reposts_count'] or 0,
@@ -363,7 +421,6 @@ def like_post(post_id):
     if not user:
         return jsonify({'error': 'Неверный токен'}), 401
 
-    # Проверяем, есть ли уже лайк
     existing = db_service.execute_query(
         "SELECT id FROM post_likes WHERE post_id = %s AND user_id = %s",
         [post_id, user['id']],
@@ -371,14 +428,12 @@ def like_post(post_id):
     )
 
     if existing:
-        # Убираем лайк
         db_service.execute_query(
             "DELETE FROM post_likes WHERE post_id = %s AND user_id = %s",
             [post_id, user['id']]
         )
         action = 'unliked'
     else:
-        # Добавляем лайк
         like_id = uuid.uuid4()
         db_service.execute_query(
             "INSERT INTO post_likes (id, post_id, user_id) VALUES (%s, %s, %s)",
@@ -386,7 +441,6 @@ def like_post(post_id):
         )
         action = 'liked'
 
-    # Обновляем счетчик лайков в таблице posts
     count = db_service.execute_query(
         "SELECT COUNT(*) as count FROM post_likes WHERE post_id = %s",
         [post_id],
@@ -398,7 +452,6 @@ def like_post(post_id):
         [count['count'], datetime.now(), post_id]
     )
 
-    # Возвращаем обновленные данные
     return jsonify({
         'action': action,
         'likes_count': count['count']
@@ -425,7 +478,6 @@ def update_post(post_id):
     if not content:
         return jsonify({'error': 'Пост не может быть пустым'}), 400
 
-    # Проверяем, что пост принадлежит пользователю
     post_check = db_service.execute_query(
         "SELECT user_id FROM posts WHERE id = %s",
         [post_id],
@@ -455,7 +507,6 @@ def update_post(post_id):
         )
 
         if updated_post:
-            # Получаем ПОЛНЫЕ данные пользователя
             full_user = db_service.execute_query(
                 "SELECT id, username, display_name, avatar_url FROM users WHERE id = %s",
                 [updated_post['user_id']],
@@ -467,7 +518,7 @@ def update_post(post_id):
                 'user_id': updated_post['user_id'],
                 'content': updated_post['content'],
                 'post_type': updated_post['post_type'],
-                'media_urls': updated_post['media_urls'],
+                'media_urls': ensure_array(updated_post.get('media_urls')),
                 'created_at': updated_post['created_at'].isoformat() if updated_post['created_at'] else None,
                 'updated_at': updated_post['updated_at'].isoformat() if updated_post['updated_at'] else None,
                 'username': full_user['username'],
@@ -496,7 +547,6 @@ def delete_post(post_id):
     if not user:
         return jsonify({'error': 'Неверный токен'}), 401
 
-    # Проверяем, что пост принадлежит пользователю
     post_check = db_service.execute_query(
         "SELECT user_id FROM posts WHERE id = %s",
         [post_id],
@@ -510,19 +560,14 @@ def delete_post(post_id):
         return jsonify({'error': 'Нет прав на удаление'}), 403
 
     try:
-        # Удаляем лайки поста
         db_service.execute_query(
             "DELETE FROM post_likes WHERE post_id = %s",
             [post_id]
         )
-
-        # Удаляем комментарии поста
         db_service.execute_query(
             "DELETE FROM comments WHERE post_id = %s",
             [post_id]
         )
-
-        # Удаляем пост
         db_service.execute_query(
             "DELETE FROM posts WHERE id = %s",
             [post_id]
@@ -533,6 +578,7 @@ def delete_post(post_id):
     except Exception as e:
         print(f"❌ Error deleting post: {e}")
         return jsonify({'error': str(e)}), 500
+
 
 @posts_bp.route('/posts/<post_id>/comments', methods=['GET'])
 def get_comments(post_id):

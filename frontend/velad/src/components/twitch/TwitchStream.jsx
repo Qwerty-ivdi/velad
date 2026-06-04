@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../lib/supabase';
+import '../../styles/twitch.css';
 import { FaTwitch, FaUsers, FaGamepad, FaCalendar } from 'react-icons/fa';
 
 const TwitchStream = ({ stream, compact = false }) => {

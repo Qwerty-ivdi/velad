@@ -1,13 +1,15 @@
 import bcrypt
 import uuid
 import jwt
-
-from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, current_app
-from app.services.db_service import db_service
-# from app.services.twitch_service import twitch_service
-import requests
+import secrets
 import re
+import requests
+import os
+from urllib.parse import urlencode
+from datetime import datetime, timedelta
+from flask import Blueprint, request, jsonify, current_app, redirect, session
+from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
+from app.services.db_service import db_service
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -23,11 +25,30 @@ def validate_username(username):
     return re.match(r'^[a-zA-Z0-9_-]+$', username) is not None
 
 
+def get_backend_url():
+    """Получить URL бэкенда из переменной окружения"""
+    # Приоритет: переменная окружения
+    url = os.environ.get('BACKEND_URL')
+    if url:
+        return url.rstrip('/')
+    # На Railway используем правильный URL
+    return 'https://velad-production.up.railway.app'
+
+
+def get_frontend_url():
+    """Получить URL фронтенда из переменной окружения"""
+    url = os.environ.get('FRONTEND_URL')
+    if url:
+        return url.rstrip('/')
+    return 'https://veladtwitch.vercel.app'
+
+
+# ==================== EMAIL/ПАРОЛЬ РЕГИСТРАЦИЯ ====================
+
 @auth_bp.route('/register', methods=['POST'])
 def register():
     try:
         data = request.get_json()
-
         email = data.get('email')
         password = data.get('password')
         username = data.get('username')
@@ -35,7 +56,6 @@ def register():
 
         print(f"📝 Registration attempt for: {email}")
 
-        # Валидация
         if not all([email, password, username, display_name]):
             return jsonify({'error': 'Все поля обязательны'}), 400
 
@@ -48,33 +68,29 @@ def register():
         if len(password) < 6:
             return jsonify({'error': 'Пароль должен быть не менее 6 символов'}), 400
 
-        # Проверка существования пользователя
         existing = db_service.execute_query(
             "SELECT id FROM users WHERE email = %s OR username = %s",
-            [email, username]
+            [email, username], fetch_one=True
         )
 
         if existing:
             return jsonify({'error': 'Пользователь с таким email или именем уже существует'}), 400
 
-        # Хэшируем пароль
         salt = bcrypt.gensalt()
         password_hash = bcrypt.hashpw(password.encode('utf-8'), salt)
 
         user_id = uuid.uuid4()
         avatar_url = f"https://ui-avatars.com/api/?name={display_name}&background=9146FF&color=fff&size=128"
 
-        # Создаем пользователя
         db_service.execute_query("""
-            INSERT INTO users (id, email, password_hash, username, display_name, avatar_url)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, [str(user_id), email, password_hash.decode('utf-8'), username, display_name, avatar_url])
+            INSERT INTO users (id, email, password_hash, username, display_name, avatar_url, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, [str(user_id), email, password_hash.decode('utf-8'), username, display_name, avatar_url, datetime.now()])
 
-        # Создаем профиль
         db_service.execute_query("""
-            INSERT INTO profiles (id, username, display_name, email, avatar_url)
-            VALUES (%s, %s, %s, %s, %s)
-        """, [str(user_id), username, display_name, email, avatar_url])
+            INSERT INTO profiles (id, username, display_name, email, avatar_url, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, [str(user_id), username, display_name, email, avatar_url, datetime.now()])
 
         return jsonify({
             'message': 'Регистрация успешна',
@@ -94,6 +110,8 @@ def register():
         return jsonify({'error': str(e)}), 500
 
 
+# ==================== EMAIL/ПАРОЛЬ ВХОД ====================
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     try:
@@ -104,7 +122,6 @@ def login():
         if not email or not password:
             return jsonify({'error': 'Email и пароль обязательны'}), 400
 
-        # Ищем пользователя в БД
         user = db_service.execute_query("""
             SELECT id, email, username, display_name, avatar_url, password_hash
             FROM users WHERE email = %s
@@ -113,15 +130,17 @@ def login():
         if not user:
             return jsonify({'error': 'Неверный email или пароль'}), 401
 
-        # Проверяем пароль
         if not bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
             return jsonify({'error': 'Неверный email или пароль'}), 401
 
-        # Генерируем JWT токен
-        token = jwt.encode({
-            'user_id': user['id'],
-            'exp': datetime.utcnow() + timedelta(days=7)
-        }, current_app.config['SECRET_KEY'], algorithm='HS256')
+        token = jwt.encode(
+            {
+                'sub': user['id'],
+                'exp': datetime.utcnow() + timedelta(days=7)
+            },
+            current_app.config['SECRET_KEY'],
+            algorithm='HS256'
+        )
 
         return jsonify({
             'message': 'Вход успешен',
@@ -142,21 +161,63 @@ def login():
         return jsonify({'error': str(e)}), 500
 
 
+# ==================== TWITCH OAuth ====================
+
 @auth_bp.route('/twitch/login', methods=['GET'])
 def twitch_login():
     """Начало OAuth авторизации через Twitch"""
-    import secrets
-    import base64
 
-    # Генерируем state для защиты от CSRF
+    # Проверяем, что переменные установлены
+    client_id = current_app.config.get('TWITCH_CLIENT_ID')
+    if not client_id:
+        print("❌ TWITCH_CLIENT_ID is not set!")
+        return jsonify({'error': 'Twitch Client ID not configured'}), 500
+
     state = secrets.token_urlsafe(32)
-    request.session['twitch_oauth_state'] = state  # нужно настроить сессии
+    session['twitch_oauth_state'] = state
 
-    # Строим URL для авторизации
-    redirect_uri = f"{request.host_url}api/auth/twitch/callback"
-    url = f"https://id.twitch.tv/oauth2/authorize?client_id={current_app.config['TWITCH_CLIENT_ID']}&redirect_uri={redirect_uri}&response_type=code&scope=user_read+user:read:follows&state={state}"
+    backend_url = get_backend_url()
 
-    return jsonify({'url': url}), 200
+    redirect_uri = f"{backend_url}/auth/twitch/callback"
+
+    print("=" * 60)
+    print("🔍 TWITCH LOGIN CALLED")
+    print(f"🔍 BACKEND_URL env: {os.environ.get('BACKEND_URL')}")
+    print(f"🔍 BACKEND_URL: {backend_url}")
+    print(f"🔍 REDIRECT_URI: {redirect_uri}")
+    print("=" * 60)
+
+    params = {
+        'client_id': client_id,
+        'redirect_uri': redirect_uri,
+        'response_type': 'code',
+        'scope': 'chat:read chat:edit user:read:email',
+        'state': state
+    }
+
+    auth_url = f"https://id.twitch.tv/oauth2/authorize?{urlencode(params)}"
+    print(f"🔐 Twitch auth URL: {auth_url}")
+    return redirect(auth_url)
+
+
+def get_twitch_user_info(access_token):
+    """Получение информации о пользователе из Twitch API"""
+    url = "https://api.twitch.tv/helix/users"
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Client-ID': current_app.config['TWITCH_CLIENT_ID']
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('data'):
+                return data['data'][0]
+    except Exception as e:
+        print(f"Error getting Twitch user info: {e}")
+
+    return None
 
 
 @auth_bp.route('/twitch/callback', methods=['GET'])
@@ -164,75 +225,175 @@ def twitch_callback():
     """Callback после авторизации через Twitch"""
     code = request.args.get('code')
     state = request.args.get('state')
+    error = request.args.get('error')
 
-    # Проверка state (опционально)
-    # if state != request.session.get('twitch_oauth_state'):
-    #     return jsonify({'error': 'Invalid state'}), 400
+    print("=" * 60)
+    print("🔥 TWITCH CALLBACK RECEIVED 🔥")
+    print(f"📝 Code: {code[:20] if code else 'None'}...")
+    print(f"📝 State: {state}")
+    print(f"📝 Error: {error}")
+    print("=" * 60)
+
+    frontend_url = get_frontend_url()
+    backend_url = get_backend_url()
+
+    if error:
+        print(f"❌ Error from Twitch: {error}")
+        return redirect(f"{frontend_url}/login?error=twitch_auth_failed")
 
     if not code:
+        print("❌ No code provided")
         return jsonify({'error': 'No code provided'}), 400
 
-    # Получаем токены
+    # Проверяем state
+    saved_state = session.pop('twitch_oauth_state', None)
+    if not saved_state or saved_state != state:
+        print(f"❌ State mismatch: saved={saved_state}, received={state}")
+        return redirect(f"{frontend_url}/login?error=invalid_state")
+
+    # Обмен кода на токены
     token_url = "https://id.twitch.tv/oauth2/token"
-    data = {
+    redirect_uri = f"{backend_url}/auth/twitch/callback"
+
+    token_data = {
         'client_id': current_app.config['TWITCH_CLIENT_ID'],
         'client_secret': current_app.config['TWITCH_CLIENT_SECRET'],
         'code': code,
         'grant_type': 'authorization_code',
-        'redirect_uri': f"{request.host_url}api/auth/twitch/callback"
+        'redirect_uri': redirect_uri
     }
 
-    response = requests.post(token_url, data=data)
-    if response.status_code != 200:
-        return jsonify({'error': 'Failed to get token'}), 400
+    try:
+        print(f"📡 Exchanging code for tokens...")
+        token_response = requests.post(token_url, data=token_data)
+        print(f"📡 Token response status: {token_response.status_code}")
 
-    token_data = response.json()
-    access_token = token_data.get('access_token')
-    refresh_token = token_data.get('refresh_token')
+        if token_response.status_code != 200:
+            print(f"❌ Token exchange failed: {token_response.text}")
+            return redirect(f"{frontend_url}/login?error=token_exchange_failed")
 
-    # Получаем информацию о пользователе Twitch
-   # user_info = twitch_service.get_user_info(access_token)
-   # if not user_info:
-   #     return jsonify({'error': 'Failed to get user info'}), 400
+        tokens = token_response.json()
+        access_token = tokens.get('access_token')
+        refresh_token = tokens.get('refresh_token')
 
-   # twitch_id = user_info['id']
-   # twitch_login = user_info['login']
-   # email = user_info.get('email')
+        print(f"📝 Access token length: {len(access_token) if access_token else 0}")
+        print(f"📝 Refresh token length: {len(refresh_token) if refresh_token else 0}")
 
-    # Ищем пользователя в БД
-    user = db_service.execute_query(
-        "SELECT * FROM users WHERE twitch_id = %s OR email = %s",
-        [twitch_id, email], fetch_one=True
-    )
+        # Получаем информацию о пользователе
+        user_info = get_twitch_user_info(access_token)
+        if not user_info:
+            print("❌ Failed to get user info")
+            return redirect(f"{frontend_url}/login?error=no_user_info")
 
-    if user:
-        # Обновляем существующего пользователя
-        db_service.execute_query("""
-            UPDATE users 
-            SET twitch_access_token = %s, twitch_refresh_token = %s, 
-                twitch_token_expires_at = %s, updated_at = NOW()
-            WHERE id = %s
-        """, [access_token, refresh_token,
-              datetime.now() + timedelta(seconds=token_data['expires_in']),
-              user['id']])
+        twitch_id = user_info['id']
+        twitch_login = user_info['login']
+        email = user_info.get('email')
+        display_name = user_info.get('display_name', twitch_login)
+        avatar_url = user_info.get('profile_image_url', '')
 
-        user_id = user['id']
-    else:
-        # Создаем нового пользователя
-        user_id = uuid.uuid4()
-        db_service.execute_query("""
-            INSERT INTO users (id, email, username, display_name, 
-                              twitch_id, twitch_login, twitch_access_token, 
-                              twitch_refresh_token, avatar_url, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, [str(user_id), email, twitch_login, user_info['display_name'],
-              twitch_id, twitch_login, access_token, refresh_token,
-              user_info['profile_image_url'], datetime.now()])
+        print(f"✅ Twitch user: {twitch_login} ({email})")
 
-    # Генерируем JWT токен для нашего приложения
-    payload = {'user_id': str(user_id), 'exp': datetime.utcnow() + timedelta(days=7)}
-    jwt_token = jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm='HS256')
+        # Ищем пользователя в БД
+        user = db_service.execute_query(
+            "SELECT * FROM users WHERE twitch_id = %s OR email = %s",
+            [twitch_id, email], fetch_one=True
+        )
 
-    # Перенаправляем на фронтенд с токеном
-    frontend_url = "http://localhost:3000/auth/callback"
-    return redirect(f"{frontend_url}?access_token={jwt_token}")
+        if user:
+            user_id = user.get('id')
+            print(f"📡 Updating existing user: {user_id}")
+
+            db_service.execute_query("""
+                UPDATE users 
+                SET twitch_access_token = %s, 
+                    twitch_refresh_token = %s, 
+                    twitch_token_expires_at = NOW() + INTERVAL '30 days',
+                    twitch_login = %s,
+                    avatar_url = %s,
+                    updated_at = NOW()
+                WHERE id = %s
+            """, [access_token, refresh_token, twitch_login, avatar_url, user_id])
+            print(f"✅ Updated user {twitch_login}")
+        else:
+            user_id = str(uuid.uuid4())
+            print(f"📡 Creating new user: {user_id}")
+
+            # Используем twitch_login как username
+            db_service.execute_query("""
+                INSERT INTO users (id, email, username, display_name, password_hash,
+                                  twitch_id, twitch_login, twitch_access_token, 
+                                  twitch_refresh_token, avatar_url, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, [user_id, email, twitch_login, display_name, '',
+                  twitch_id, twitch_login, access_token, refresh_token,
+                  avatar_url, datetime.now()])
+            print(f"✅ Created new user {twitch_login}")
+
+        # Генерируем JWT токен для нашего приложения
+        jwt_token = jwt.encode(
+            {
+                'sub': user_id,
+                'exp': datetime.utcnow() + timedelta(days=7)
+            },
+            current_app.config['SECRET_KEY'],
+            algorithm='HS256'
+        )
+
+        print(f"✅ Redirecting to frontend: {frontend_url}/auth/callback")
+        return redirect(f"{frontend_url}/auth/callback?access_token={jwt_token}")
+
+    except Exception as e:
+        print(f"❌ Exception in callback: {e}")
+        import traceback
+        traceback.print_exc()
+        return redirect(f"{frontend_url}/login?error=callback_failed")
+
+
+@auth_bp.route('/twitch/token', methods=['GET'])
+@jwt_required()
+def get_twitch_token():
+    """Вернуть валидный токен Twitch для текущего пользователя"""
+    try:
+        user_id = get_jwt_identity()
+        print(f"📡 Getting Twitch token for user: {user_id}")
+
+        user = db_service.execute_query("""
+            SELECT twitch_access_token, twitch_login, twitch_token_expires_at
+            FROM users WHERE id = %s
+        """, [user_id], fetch_one=True)
+
+        if not user:
+            return jsonify({
+                'has_token': False,
+                'error': 'User not found'
+            }), 200
+
+        if not user.get('twitch_access_token'):
+            print(f"⚠️ No Twitch token found")
+            return jsonify({
+                'has_token': False,
+                'error': 'No Twitch token found'
+            }), 200
+
+        expires_at = user.get('twitch_token_expires_at')
+        if expires_at and expires_at <= datetime.now():
+            print(f"⚠️ Token expired at {expires_at}")
+            return jsonify({
+                'has_token': False,
+                'error': 'Token expired'
+            }), 200
+
+        token_length = len(user['twitch_access_token'])
+        print(f"✅ Returning Twitch token for {user['twitch_login']} (length: {token_length})")
+
+        return jsonify({
+            'has_token': True,
+            'twitch_access_token': user['twitch_access_token'],
+            'twitch_login': user['twitch_login']
+        }), 200
+
+    except Exception as e:
+        print(f"❌ Error in get_twitch_token: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'has_token': False, 'error': str(e)}), 500

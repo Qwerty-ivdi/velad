@@ -1,5 +1,7 @@
+// src/components/messenger/Messenger.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../lib/supabase';
+import { API_URL } from '../../config';
 import socketService from '../../services/socket';
 import './Messenger.css';
 
@@ -26,25 +28,39 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
 
   // Загрузка диалогов
   const loadConversations = async () => {
-    try {
-      const token = api.getToken();
-      const response = await fetch('http://localhost:5000/api/conversations', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      setConversations(data || []);
-      return data || [];
-    } catch (err) {
-      console.error('Error loading conversations:', err);
-      return [];
+  try {
+    const token = api.getToken();
+    const response = await fetch(`${API_URL}/conversations`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    // 1. Проверяем, успешен ли ответ
+    if (!response.ok) {
+      console.error(`Ошибка загрузки диалогов: ${response.status}`);
+      return []; 
     }
-  };
+    
+    const data = await response.json();
+    
+    // 2. Проверяем, что data — это массив
+    if (!Array.isArray(data)) {
+      console.error('Сервер вернул не массив для диалогов:', data);
+      return []; 
+    }
+    
+    setConversations(data);
+    return data;
+  } catch (err) {
+    console.error('Error loading conversations:', err);
+    return [];
+  }
+};
 
   // Загрузка сообщений
   const loadMessages = async (conversationId) => {
     try {
       const token = api.getToken();
-      const response = await fetch(`http://localhost:5000/api/conversations/${conversationId}/messages`, {
+      const response = await fetch(`${API_URL}/conversations/${conversationId}/messages`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -60,7 +76,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   const markAsRead = async (conversationId) => {
     try {
       const token = api.getToken();
-      await fetch(`http://localhost:5000/api/conversations/${conversationId}/read`, {
+      await fetch(`${API_URL}/conversations/${conversationId}/read`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -109,7 +125,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       } else {
         console.log("⚠️ WebSocket not connected, using REST fallback");
         // Fallback на REST
-        const response = await fetch('http://localhost:5000/api/messages', {
+        const response = await fetch(`${API_URL}/messages`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -139,94 +155,19 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   };
 
-  // Получение нового сообщения через WebSocket
-  useEffect(() => {
-    const socket = socketService.getSocket();
-    if (!socket) return;
-
-    console.log("🔌 Setting up listeners, socket connected:", socket.connected);
-
-    const handleNewMessage = (message) => {
-      console.log('📩 New message received:', message);
-      console.log('Selected conversation:', selectedConversation);
-      console.log('Message sender:', message.sender_id, 'Other user:', selectedConversation?.other_user_id);
-      
-      // Обновляем список диалогов
-      loadConversations();
-      
-      // Проверяем, относится ли сообщение к текущему открытому диалогу
-      if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
-        console.log('✅ Message belongs to current conversation, adding to messages');
-        
-        setMessages(prev => {
-          if (prev.some(m => m.id === message.id)) {
-            return prev;
-          }
-          return [...prev, message];
-        });
-        
-        markAsRead(selectedConversation.id);
-        scrollToBottom();
-      } else {
-        console.log('⚠️ Message not for current conversation');
-      }
-    };
-
-    const handleMessageSent = (message) => {
-      console.log('✅ Message sent confirmation:', message);
-      
-      // Обновляем список диалогов
-      loadConversations();
-      
-      // Обновляем сообщение, если оно было временным
-      setMessages(prev => prev.map(msg => 
-        (msg.is_temp && msg.content === message.content && msg.sender_id === message.sender_id)
-          ? { ...message, is_temp: false }
-          : msg
-      ));
-    };
-
-    socket.on('new_message', handleNewMessage);
-    socket.on('message_sent', handleMessageSent);
-    socket.on('connect', () => console.log('✅ WebSocket connected'));
-    socket.on('disconnect', () => console.log('🔌 WebSocket disconnected'));
-
-    return () => {
-      socket.off('new_message', handleNewMessage);
-      socket.off('message_sent', handleMessageSent);
-    };
-  }, [selectedConversation]);
-
-  // Инициализация
-  useEffect(() => {
-    const init = async () => {
-      const token = api.getToken();
-      const socket = socketService.getSocket();
-      
-      if (!socket || !socketService.isConnected()) {
-        socketService.connect(token);
-      }
-      
-      await loadConversations();
-      setLoading(false);
-    };
-    
-    init();
-  }, []);
-
   // При открытии диалога с otherUserId
   useEffect(() => {
-    const initConversation = async () => {
+      const initConversation = async () => {
       if (otherUserId) {
         const convs = await loadConversations();
-        const existing = convs.find(c => c.other_user_id === otherUserId);
+        const existing = convs.length > 0 ? convs.find(c => c.other_user_id === otherUserId) : null;
         
         if (existing) {
           setSelectedConversation(existing);
           await loadMessages(existing.id);
         } else {
           const token = api.getToken();
-          const response = await fetch('http://localhost:5000/api/conversations/create', {
+          const response = await fetch(`${API_URL}/conversations/create`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -234,18 +175,19 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
             },
             body: JSON.stringify({ other_user_id: otherUserId })
           });
-          const data = await response.json();
           
-          const newConv = {
-            id: data.id,
-            other_user_id: otherUserId,
-            other_user_name: otherUserName,
-            other_user_avatar: otherUserAvatar,
-            last_message: '',
-            unread_count: 0
-          };
-          
-          setSelectedConversation(newConv);
+          if (response.ok) {
+            const data = await response.json();
+            const newConv = {
+              id: data.id,
+              other_user_id: otherUserId,
+              other_user_name: otherUserName,
+              other_user_avatar: otherUserAvatar,
+              last_message: '',
+              unread_count: 0
+            };
+            setSelectedConversation(newConv);
+          }
         }
         setLoading(false);
       }
@@ -254,7 +196,74 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     if (otherUserId) {
       initConversation();
     }
-  }, [otherUserId]);
+  }, [otherUserId, loadMessages, otherUserAvatar, otherUserName]);
+
+  useEffect(() => {
+  const loadAllConversations = async () => {
+    console.log('🔍 Loading all conversations for messenger');
+    const convs = await loadConversations();
+    setConversations(convs);
+    setLoading(false);
+  };
+  
+  loadAllConversations();
+}, []);
+
+  useEffect(() => {
+  const socket = socketService.getSocket();
+  if (!socket) return;
+
+  console.log("🔌 Setting up listeners, socket connected:", socket.connected);
+
+  const handleNewMessage = (message) => {
+    console.log('📩 New message received:', message);
+    
+    // Обновляем список диалогов
+    loadConversations();
+    
+    // Проверяем, относится ли сообщение к текущему открытому диалогу
+    if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
+      console.log('✅ Message belongs to current conversation, adding to messages');
+      
+      setMessages(prev => {
+        // Проверяем, нет ли уже такого сообщения
+        if (prev.some(m => m.id === message.id)) {
+          return prev;
+        }
+        return [...prev, message];
+      });
+      
+      markAsRead(selectedConversation.id);
+      scrollToBottom();
+    } else if (!selectedConversation && message.receiver_id === currentUserId) {
+      // Если диалог не открыт, но пришло новое сообщение - обновляем список диалогов
+      console.log('📩 New message from unknown conversation, refreshing list');
+      loadConversations();
+    }
+  };
+
+  const handleMessageSent = (message) => {
+    console.log('✅ Message sent confirmation:', message);
+    
+    // Обновляем список диалогов
+    loadConversations();
+    
+    // Обновляем сообщение, если оно было временным
+    setMessages(prev => prev.map(msg => 
+      (msg.is_temp && msg.content === message.content && msg.sender_id === message.sender_id)
+        ? { ...message, is_temp: false }
+        : msg
+    ));
+  };
+
+  socket.on('new_message', handleNewMessage);
+  socket.on('message_sent', handleMessageSent);
+
+  return () => {
+    socket.off('new_message', handleNewMessage);
+    socket.off('message_sent', handleMessageSent);
+  };
+}, [selectedConversation, currentUserId]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -361,10 +370,17 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
             </form>
           </div>
         ) : (
-          <div className="no-conversation-selected">
-            <p>Выберите диалог, чтобы начать общение</p>
-          </div>
-        )}
+  <div className="no-conversation-selected">
+    {conversations.length === 0 ? (
+      <div className="empty-state">
+        <p>У вас пока нет диалогов</p>
+        <p className="hint">Напишите кому-нибудь первым!</p>
+      </div>
+    ) : (
+      <p>Выберите диалог, чтобы начать общение</p>
+    )}
+  </div>
+)}
       </div>
     </div>
   );

@@ -61,4 +61,5 @@ class CacheService {
   }
 }
 
-export default new CacheService();
+const cacheService = new CacheService();
+export default cacheService;

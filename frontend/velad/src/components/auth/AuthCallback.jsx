@@ -1,58 +1,60 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { api } from '../../lib/supabase'
+// src/components/auth/AuthCallback.jsx
+import React, { useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { api } from '../../lib/supabase';
 
 const AuthCallback = ({ setUser }) => {
-  const navigate = useNavigate()
-  const [error, setError] = useState(null)
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    const handleCallback = async () => {
-      // Получаем параметры из URL
-      const params = new URLSearchParams(window.location.search)
-      const access_token = params.get('access_token')
-      
-      if (access_token) {
-        api.setToken(access_token)
-        try {
-          const profile = await api.getProfile(access_token)
-          api.setUser(profile)
-          if (setUser) setUser(profile)
-          navigate('/profile')
-        } catch (err) {
-          setError(err.message)
-        }
-      } else {
-        setError('Не удалось получить токен авторизации')
-      }
+    const params = new URLSearchParams(location.search);
+    const accessToken = params.get('access_token');
+    const error = params.get('error');
+
+    console.log('🔍 AuthCallback mounted');
+    console.log('🔍 Full URL:', window.location.href);
+    console.log('🔍 Access token from URL:', accessToken ? accessToken.substring(0, 50) + '...' : 'null');
+    console.log('🔍 Error:', error);
+
+    if (error) {
+      console.error('Auth error:', error);
+      navigate('/login?error=twitch_auth_failed');
+      return;
     }
 
-    handleCallback()
-  }, [navigate, setUser])
-
-  if (error) {
-    return (
-      <div className="auth-container">
-        <div className="auth-card">
-          <h2 className="auth-subtitle">Ошибка авторизации</h2>
-          <div className="auth-error">{error}</div>
-          <button onClick={() => navigate('/login')} className="btn btn-primary">
-            Вернуться на главную
-          </button>
-        </div>
-      </div>
-    )
-  }
+    if (accessToken) {
+      console.log('📝 Saving token to localStorage');
+      api.setToken(accessToken);
+      
+      console.log('📡 Fetching user profile...');
+      api.getProfile(accessToken)
+        .then(user => {
+          console.log('✅ User profile loaded:', user);
+          api.setUser(user);
+          if (setUser) setUser(user);
+          navigate('/profile');
+        })
+        .catch(err => {
+          console.error('❌ Error getting user profile:', err);
+          console.error('❌ Error details:', err.message);
+          navigate('/login');
+        });
+    } else {
+      console.log('❌ No access token in URL');
+      navigate('/login');
+    }
+  }, [location, navigate, setUser]);
 
   return (
     <div className="auth-container">
-      <div className="auth-card" style={{ textAlign: 'center' }}>
-        <h2 className="auth-subtitle">Вход через Twitch</h2>
-        <div className="spinner" style={{ margin: '1rem auto' }}></div>
+      <div className="auth-card">
+        <h2 className="auth-subtitle">Авторизация через Twitch</h2>
+        <div className="loading-spinner"></div>
         <p>Перенаправление...</p>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default AuthCallback
+export default AuthCallback;

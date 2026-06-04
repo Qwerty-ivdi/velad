@@ -1,105 +1,87 @@
-import React, { useState } from 'react';
+// src/components/common/Navbar.jsx
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { api } from '../../lib/supabase';
-import { FaGamepad, FaHome, FaUser, FaSignOutAlt, FaBars, FaTimes, FaChevronDown, FaSearch, FaEnvelope } from 'react-icons/fa';
-import Messenger from '../messenger/Messenger';
-import '../../styles/navbar.css'
+import { FaSearch, FaTv, FaChartBar, FaEnvelope, FaSignOutAlt, FaTwitch, FaUserPlus } from 'react-icons/fa';
 
-const Navbar = ({ user, setUser }) => {
+const Navbar = ({ user, onLogout, onOpenMessenger }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [showMessenger, setShowMessenger] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-  const handleLogout = async () => {
-    api.removeToken();
-    api.removeUser();
-    if (setUser) setUser(null);
-    navigate('/login');
-    setIsDropdownOpen(false);
-  };
-
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const isActive = (path) => location.pathname === path;
 
   return (
-    <>
-      <nav className="navbar">
-        <div className="navbar-container">
-          <div className="navbar-content">
-            <Link to="/" className="navbar-logo">
-              <FaGamepad className="navbar-logo-icon" />
-              <span className="navbar-logo-text">Velad</span>
-            </Link>
-
-            <button className="navbar-menu-btn" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-              {isMobileMenuOpen ? <FaTimes /> : <FaBars />}
-            </button>
-
-            <div className={`navbar-links ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
-              <Link to="/" className={`navbar-link ${isActive('/') ? 'active' : ''}`} onClick={() => setIsMobileMenuOpen(false)}>
-                <FaHome /> Главная
-              </Link>
-              <Link to="/search" className={`navbar-link ${isActive('/search') ? 'active' : ''}`} onClick={() => setIsMobileMenuOpen(false)}>
-                <FaSearch /> Поиск
-              </Link>
-            </div>
-
-            {user ? (
-              <div className="navbar-user">
-                {/* Кнопка мессенджера */}
-                <button className="messenger-btn" onClick={() => setShowMessenger(true)}>
-                  <FaEnvelope />
-                </button>
-
-                <div className="navbar-user-info" onClick={toggleDropdown}>
-                  <img 
-                    src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.display_name || user.username}&background=9146FF&color=fff&size=40`} 
-                    alt="Avatar" 
-                    className="navbar-avatar" 
-                  />
-                  <span className="navbar-username">{user.display_name || user.username}</span>
-                  <FaChevronDown className={`navbar-chevron ${isDropdownOpen ? 'open' : ''}`} />
-                </div>
-
-                {isDropdownOpen && (
-                  <div className="dropdown-menu">
-                    <Link to="/profile" className="dropdown-item" onClick={() => { setIsDropdownOpen(false); setIsMobileMenuOpen(false); }}>
-                      <FaUser /> Профиль
-                    </Link>
-                    <div className="dropdown-divider"></div>
-                    <button className="dropdown-item dropdown-item-danger" onClick={handleLogout}>
-                      <FaSignOutAlt /> Выйти
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className={`navbar-buttons ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
-                <Link to="/login" className="navbar-btn navbar-btn-login" onClick={() => setIsMobileMenuOpen(false)}>
-                  Вход
-                </Link>
-                <Link to="/register" className="navbar-btn navbar-btn-register" onClick={() => setIsMobileMenuOpen(false)}>
-                  Регистрация
-                </Link>
-              </div>
-            )}
-          </div>
+    <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
+      <div className="navbar-container">
+        <div className="navbar-brand">
+          <Link to="/" className="brand-link">
+            <FaTwitch className="brand-icon" />
+            <span className="brand-name">Velad</span>
+          </Link>
         </div>
-      </nav>
 
-      {/* Мессенджер */}
-      {showMessenger && (
-        <Messenger 
-          currentUserId={user?.id} 
-          onClose={() => setShowMessenger(false)} 
-        />
-      )}
-    </>
+        <div className="navbar-links">
+          <Link to="/streams" className={`nav-link ${isActive('/streams') ? 'active' : ''}`}>
+            <FaTv />
+            <span>Стримы</span>
+          </Link>
+          <Link to="/search" className={`nav-link ${isActive('/search') ? 'active' : ''}`}>
+            <FaSearch />
+            <span>Поиск</span>
+          </Link>
+          {user && (
+            <Link to="/stats" className={`nav-link ${isActive('/stats') ? 'active' : ''}`}>
+              <FaChartBar />
+              <span>Статистика</span>
+            </Link>
+          )}
+        </div>
+
+        <div className="navbar-user">
+          {user ? (
+            <>
+              <button 
+                className="nav-icon-btn messenger-btn" 
+                onClick={onOpenMessenger}
+                title="Сообщения"
+              >
+                <FaEnvelope />
+              </button>
+              <div className="user-menu">
+                <Link to="/profile" className="user-avatar">
+                  <img 
+                    src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.display_name}&background=9146FF&color=fff&size=32`} 
+                    alt={user.display_name}
+                  />
+                  <span className="user-name">{user.display_name}</span>
+                </Link>
+              </div>
+              <button onClick={onLogout} className="logout-btn" title="Выйти">
+                <FaSignOutAlt />
+              </button>
+            </>
+          ) : (
+            <div className="auth-buttons">
+              <button onClick={() => navigate('/login')} className="login-btn">
+                Войти
+              </button>
+              <button onClick={() => navigate('/register')} className="register-btn">
+                <FaUserPlus />
+                <span>Регистрация</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </nav>
   );
 };
 

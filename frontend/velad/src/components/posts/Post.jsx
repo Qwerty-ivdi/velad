@@ -31,21 +31,20 @@ const Post = ({ post, token, isOwnPost = false, currentUserId, onPostUpdate, onP
   };
 
   const handleLike = async () => {
-    if (loading) return;
-    setLoading(true);
-    try {
-      const result = await api.likePost(token, post.id);
-      const newLiked = result.action === 'liked';
-      const newLikesCount = result.likes_count;
-      setLiked(newLiked);
-      setLikesCount(newLikesCount);
-      if (onLikeUpdate) onLikeUpdate(post.id, newLiked, newLikesCount);
-    } catch (err) {
-      console.error('Like error:', err);
-    } finally {
-      setLoading(false);
+  try {
+    const result = await api.likePost(token, post.id);
+    if (result && result.action) {
+      // Инвертируем состояние на основе результата от API
+      onLikeUpdate?.(post.id, result.action === 'liked', result.likes_count);
+    } else if (result && typeof result.likes_count !== 'undefined') {
+      // Если API возвращает только likes_count
+      const newIsLiked = !post.is_liked;
+      onLikeUpdate?.(post.id, newIsLiked, result.likes_count);
     }
-  };
+  } catch (err) {
+    console.error('Error liking post:', err);
+  }
+};
 
   const handleEdit = async () => {
     if (!editContent.trim()) return;
@@ -125,19 +124,14 @@ const Post = ({ post, token, isOwnPost = false, currentUserId, onPostUpdate, onP
           
           <p className="repost-original-text">{post.original_content}</p>
           
-          {post.original_media_urls && post.original_media_urls.length > 0 && (
-            <div className={`repost-media ${post.original_media_urls.length === 1 ? 'single' : ''} ${post.original_media_urls.length === 2 ? 'grid-2' : ''}`}>
+          {post.original_media_urls && Array.isArray(post.original_media_urls) && post.original_media_urls.length > 0 && (
+            <div className="repost-media">
               {post.original_media_urls.map((url, i) => (
-                <img 
-                  key={i} 
-                  src={url} 
-                  alt={`repost-media-${i}`}
-                  onClick={() => window.open(url, '_blank')}
-                />
+                <img key={i} src={url} alt="" />
               ))}
             </div>
           )}
-          
+                    
           {post.repost_comment && (
             <div className="repost-comment">
               <span className="repost-comment-icon">💬</span>
@@ -240,8 +234,8 @@ const Post = ({ post, token, isOwnPost = false, currentUserId, onPostUpdate, onP
         <>
           <div className="post-content">
             <p>{post.content}</p>
-            {post.media_urls?.length > 0 && (
-              <div className={`post-media ${post.media_urls.length === 1 ? 'single' : ''} ${post.media_urls.length === 2 ? 'grid-2' : ''} ${post.media_urls.length === 3 ? 'grid-3' : ''}`}>
+            {post.media_urls && Array.isArray(post.media_urls) && post.media_urls.length > 0 && (
+              <div className={`post-media ${post.media_urls.length === 1 ? 'single' : ''}`}>
                 {post.media_urls.map((url, i) => (
                   <img key={i} src={url} alt="" />
                 ))}
@@ -258,7 +252,6 @@ const Post = ({ post, token, isOwnPost = false, currentUserId, onPostUpdate, onP
             <button className="repost-btn" onClick={() => setShowRepostModal(true)} disabled={loading}>
               <FaRetweet /> <span>{repostsCount}</span>
             </button>
-            <button className="share-btn"><FaShare /></button>
           </div>
         </>
       )}
