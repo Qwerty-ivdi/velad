@@ -1,12 +1,12 @@
 // src/components/twitch/TwitchStreamCard.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';  // ← добавить
+import { useNavigate } from 'react-router-dom';
 import { FaTwitch, FaUsers, FaGamepad, FaCalendar, FaHeart, FaShare } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 
 const TwitchStreamCard = ({ stream, compact = false }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const navigate = useNavigate();  // ← добавить
+  const navigate = useNavigate();
 
   const formatDate = (dateString) => {
     if (!dateString) return '';

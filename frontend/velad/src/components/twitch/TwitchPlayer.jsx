@@ -411,9 +411,6 @@ const TwitchPlayer = ({ token, currentUser }) => {
           <h3>{streamInfo.stream?.title}</h3>
         </div>
         <div className="stream-actions">
-          <button className="action-btn" onClick={() => setIsSubscribed(!isSubscribed)}>
-            <FaHeart /> {isSubscribed ? 'Подписан' : 'Подписаться'}
-          </button>
           <a href={`https://twitch.tv/${channel}`} target="_blank" rel="noopener noreferrer" className="action-btn">
             <FaTwitch /> Открыть на Twitch
           </a>

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { API_URL } from '../config';
 
 export const useWatchSession = (channel, token) => {
-  const [sessionId, setSessionId] = useState(null);  // ← useState вместо useRef
+  const [sessionId, setSessionId] = useState(null);
 
   useEffect(() => {
     if (!channel || !token) {
@@ -29,7 +29,7 @@ export const useWatchSession = (channel, token) => {
         const data = await response.json();
         
         if (response.ok && data.session_id && isMounted) {
-          setSessionId(data.session_id);  // ← обновляем состояние
+          setSessionId(data.session_id);
           console.log('📊 Watch session started, ID:', data.session_id);
         } else {
           console.error('Failed to start watch session:', data);
@@ -55,7 +55,7 @@ export const useWatchSession = (channel, token) => {
         }).catch(err => console.error('Error ending session:', err));
       }
     };
-  }, [channel, token]);  // ← убрал sessionId из зависимостей
+  }, [channel, token]);
 
-  return sessionId;  // ← возвращаем состояние
+  return sessionId; 
 };
