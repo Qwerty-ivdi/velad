@@ -1,15 +1,17 @@
 // src/hooks/useWatchSession.js
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { API_URL } from '../config';
 
 export const useWatchSession = (channel, token) => {
-  const sessionIdRef = useRef(null);
+  const [sessionId, setSessionId] = useState(null);  // ← useState вместо useRef
 
   useEffect(() => {
     if (!channel || !token) {
       console.log('⏭️ Skipping watch session - no channel or token');
       return;
     }
+
+    let isMounted = true;
 
     const startSession = async () => {
       try {
@@ -24,14 +26,11 @@ export const useWatchSession = (channel, token) => {
           body: JSON.stringify({ streamer_name: channel })
         });
 
-        console.log('📡 Response status:', response.status);
-        
         const data = await response.json();
-        console.log('📡 Response data:', data);
         
-        if (response.ok && data.session_id) {
-          sessionIdRef.current = data.session_id;
-          console.log('📊 Watch session started, ID:', sessionIdRef.current);
+        if (response.ok && data.session_id && isMounted) {
+          setSessionId(data.session_id);  // ← обновляем состояние
+          console.log('📊 Watch session started, ID:', data.session_id);
         } else {
           console.error('Failed to start watch session:', data);
         }
@@ -43,19 +42,20 @@ export const useWatchSession = (channel, token) => {
     startSession();
 
     return () => {
-      if (sessionIdRef.current) {
-        console.log('🏁 Ending watch session:', sessionIdRef.current);
+      isMounted = false;
+      if (sessionId) {  // ← используем sessionId из замыкания
+        console.log('🏁 Ending watch session:', sessionId);
         fetch(`${API_URL}/track/view/end`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ session_id: sessionIdRef.current })
+          body: JSON.stringify({ session_id: sessionId })
         }).catch(err => console.error('Error ending session:', err));
       }
     };
-  }, [channel, token]);
+  }, [channel, token]);  // ← убрал sessionId из зависимостей
 
-  return sessionIdRef.current;
+  return sessionId;  // ← возвращаем состояние
 };
