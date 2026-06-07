@@ -33,19 +33,51 @@ def get_profile():
         user_id = get_jwt_identity()
         print(f"📡 Getting profile for user: {user_id}")
 
+        if not user_id:
+            return jsonify({'error': 'User ID not found in token'}), 401
+
+        # Упрощённый запрос — уберите сложные подзапросы для проверки
         user = db_service.execute_query("""
-            SELECT u.id, u.email, u.username, u.display_name, u.avatar_url, u.created_at,
-                   u.twitch_login, u.twitch_id,
-                   u.bio, u.location, u.website,
-                   COALESCE((SELECT COUNT(*) FROM follows WHERE following_id = u.id), 0) as followers_count,
-                   COALESCE((SELECT COUNT(*) FROM follows WHERE follower_id = u.id), 0) as following_count,
-                   COALESCE((SELECT COUNT(*) FROM posts WHERE user_id = u.id), 0) as posts_count
-            FROM users u
-            WHERE u.id = %s
+            SELECT id, email, username, display_name, avatar_url, created_at,
+                   twitch_login, twitch_id, bio, location, website
+            FROM users
+            WHERE id = %s
         """, [user_id], fetch_one=True)
 
         if not user:
             return jsonify({'error': 'User not found'}), 404
+
+        # Получаем счётчики отдельно (если таблицы существуют)
+        followers_count = 0
+        following_count = 0
+        posts_count = 0
+
+        try:
+            followers_result = db_service.execute_query(
+                "SELECT COUNT(*) as count FROM follows WHERE following_id = %s",
+                [user_id], fetch_one=True
+            )
+            followers_count = followers_result['count'] if followers_result else 0
+        except Exception as e:
+            print(f"⚠️ Could not get followers count: {e}")
+
+        try:
+            following_result = db_service.execute_query(
+                "SELECT COUNT(*) as count FROM follows WHERE follower_id = %s",
+                [user_id], fetch_one=True
+            )
+            following_count = following_result['count'] if following_result else 0
+        except Exception as e:
+            print(f"⚠️ Could not get following count: {e}")
+
+        try:
+            posts_result = db_service.execute_query(
+                "SELECT COUNT(*) as count FROM posts WHERE user_id = %s",
+                [user_id], fetch_one=True
+            )
+            posts_count = posts_result['count'] if posts_result else 0
+        except Exception as e:
+            print(f"⚠️ Could not get posts count: {e}")
 
         return jsonify({
             'id': user.get('id'),
@@ -56,17 +88,17 @@ def get_profile():
             'bio': user.get('bio'),
             'location': user.get('location'),
             'website': user.get('website'),
-            'created_at': user.get('created_at').isoformat() if user.get('created_at') else None,
+            'created_at': user['created_at'].isoformat() if user.get('created_at') else None,
             'twitch_login': user.get('twitch_login'),
             'has_twitch': user.get('twitch_id') is not None,
-            'followers_count': user.get('followers_count', 0),
-            'following_count': user.get('following_count', 0),
-            'posts_count': user.get('posts_count', 0),
-            'is_following': False  # Для своего профиля всегда false
+            'followers_count': followers_count,
+            'following_count': following_count,
+            'posts_count': posts_count,
+            'is_following': False
         }), 200
 
     except Exception as e:
-        print(f"Error getting profile: {e}")
+        print(f"❌ Error getting profile: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
