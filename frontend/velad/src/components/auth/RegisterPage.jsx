@@ -8,7 +8,7 @@ const RegisterPage = ({ setUser }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     username: '',
-    displayName: '',
+    display_name: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -46,7 +46,7 @@ const RegisterPage = ({ setUser }) => {
         email: formData.email,
         password: formData.password,
         username: formData.username,
-        display_name: formData.displayName
+        display_name: formData.display_name
       });
 
       // Автоматический вход после регистрации
@@ -105,7 +105,7 @@ const RegisterPage = ({ setUser }) => {
               name="displayName"
               type="text"
               required
-              value={formData.displayName}
+              value={formData.display_name}
               onChange={handleChange}
               className="form-input"
               placeholder="Отображаемое имя"
