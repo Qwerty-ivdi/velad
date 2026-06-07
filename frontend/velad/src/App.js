@@ -21,7 +21,6 @@ function App() {
   const [user, setUser] = useState(null);
   const [showMessenger, setShowMessenger] = useState(false);
   const [loading, setLoading] = useState(true);
-  const user = api.getUser();
   const token = api.getToken();
 
   useSocket();
