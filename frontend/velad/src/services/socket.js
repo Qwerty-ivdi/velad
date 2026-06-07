@@ -4,12 +4,18 @@ import { io } from 'socket.io-client';
 class SocketService {
   constructor() {
     this.socket = null;
-    this.connected = false;
   }
 
   connect(token) {
-    if (this.socket && this.connected) {
+    // Если уже подключены
+    if (this.socket && this.socket.connected) {
       return this.socket;
+    }
+
+    // Если сокет существует, но отключён — закрываем
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
     }
 
     const isProduction = window.location.hostname !== 'localhost';
@@ -19,9 +25,8 @@ class SocketService {
     
     console.log('🔌 Connecting to WebSocket at:', socketUrl);
     
-    // Используем polling если websocket не работает
     this.socket = io(socketUrl, {
-      transports: ['polling', 'websocket'],  // polling как fallback
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
@@ -35,7 +40,6 @@ class SocketService {
 
     this.socket.on('authenticated', (data) => {
       console.log('✅ Authenticated:', data);
-      this.connected = true;
     });
 
     this.socket.on('auth_error', (error) => {
@@ -46,6 +50,10 @@ class SocketService {
       console.error('❌ WebSocket connection error:', error);
     });
 
+    this.socket.on('disconnect', () => {
+      console.log('🔌 WebSocket disconnected');
+    });
+
     return this.socket;
   }
 
@@ -53,7 +61,6 @@ class SocketService {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
-      this.connected = false;
     }
   }
 
@@ -62,7 +69,7 @@ class SocketService {
   }
 
   isConnected() {
-    return this.connected && this.socket?.connected;
+    return this.socket?.connected === true;
   }
 }
 
