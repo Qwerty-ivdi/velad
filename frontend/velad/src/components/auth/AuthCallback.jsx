@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../../lib/supabase';
-import socketService from '../../services/socket'; // ← ДОБАВИТЬ
+import socketService from '../../services/socket';
 
 const AuthCallback = ({ setUser }) => {
   const navigate = useNavigate();

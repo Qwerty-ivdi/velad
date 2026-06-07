@@ -25,8 +25,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const token = api.getToken();
 
-  useSocket();
-
   const handleLogout = () => {
     api.removeToken();
     api.removeUser();

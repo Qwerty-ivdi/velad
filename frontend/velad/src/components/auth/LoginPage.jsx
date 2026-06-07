@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { api, twitchAuth } from '../../lib/supabase';
 import { FaTwitch, FaEnvelope, FaLock } from 'react-icons/fa';
 import '../../styles/auth.css';
+import socketService from '../../services/socket';
 
 const LoginPage = ({ setUser }) => {
   const navigate = useNavigate();
@@ -31,7 +32,6 @@ const LoginPage = ({ setUser }) => {
     }
   };
 
-  // Обновлённая функция с popup и состоянием загрузки
   const handleTwitchLogin = () => {
     setTwitchLoading(true);
     

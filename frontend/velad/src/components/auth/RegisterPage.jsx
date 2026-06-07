@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { api, twitchAuth } from '../../lib/supabase';
 import { FaTwitch, FaUser, FaEnvelope, FaLock } from 'react-icons/fa';
 import '../../styles/auth.css';
+import socketService from '../../services/socket';
 
 const RegisterPage = ({ setUser }) => {
   const navigate = useNavigate();
