@@ -1,6 +1,7 @@
 // src/components/profile/ProfileHeader.jsx
 import React, { useEffect } from 'react';
 import { FaTwitch, FaCalendar, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
+import Messenger from '../messenger/Messenger';
 
 const ProfileHeader = ({ 
   profile, 
@@ -19,6 +20,7 @@ const ProfileHeader = ({
       day: 'numeric'
     });
   };
+    const [showMessenger, setShowMessenger] = useState(false);
 
   return (
     <div className="profile-header">
