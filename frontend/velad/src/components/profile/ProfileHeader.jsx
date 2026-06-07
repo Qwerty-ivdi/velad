@@ -1,7 +1,6 @@
 // src/components/profile/ProfileHeader.jsx
 import React, { useEffect, useState} from 'react';
 import { FaTwitch, FaCalendar, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
-import Messenger from '../messenger/Messenger';
 
 const ProfileHeader = ({ 
   profile, 
@@ -102,7 +101,9 @@ const ProfileHeader = ({
                 >
                   {isFollowing ? 'Отписаться' : 'Подписаться'}
                 </button>
-              <button className="btn-message" onClick={onOpenMessenger}>Написать</button>
+              <button className="className=nav-icon-btn messenger-btn" 
+                onClick={onOpenMessenger}
+                title="Сообщения">Написать</button>
             </>
           )}
         </div>
