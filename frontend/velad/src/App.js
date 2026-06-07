@@ -15,6 +15,7 @@ import SearchPage from './components/search/SearchPage';
 import './styles/global.css';
 import './styles/navbar.css';
 import './styles/ProfileHeader.css';
+import { useSocket } from './hooks/useSocket';
 
 
 function App() {
