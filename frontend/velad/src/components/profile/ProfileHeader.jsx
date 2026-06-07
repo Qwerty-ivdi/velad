@@ -99,10 +99,20 @@ const ProfileHeader = ({
                 >
                   {isFollowing ? 'Отписаться' : 'Подписаться'}
                 </button>
-              <button className="btn-message" >Написать</button>
+              <button className="btn-message" onClick={() => setShowMessenger(true)}>Написать</button>
             </>
           )}
         </div>
+
+        {showMessenger && (
+        <Messenger 
+          currentUserId={currentUser?.id}
+          otherUserId={profile.id}
+          otherUserName={profile.display_name}
+          otherUserAvatar={profile.avatar_url}
+          onClose={() => setShowMessenger(false)}
+        />
+      )}
       </div>
     </div>
   );
