@@ -3,28 +3,31 @@ import { useEffect, useRef } from 'react';
 import socketService from '../services/socket';
 import { api } from '../lib/supabase';
 
-let isSocketInitialized = false;
+let globalInitDone = false;
 
 export const useSocket = () => {
-  const socketRef = useRef(null);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
+    
     const initSocket = () => {
       const token = api.getToken();
       if (!token) return;
       
-      if (!isSocketInitialized) {
-        console.log('🔌 Initializing global socket connection');
+      // Только один раз глобально
+      if (!globalInitDone && mountedRef.current) {
+        console.log('🔌 Initializing socket (once)');
         socketService.connect(token);
-        isSocketInitialized = true;
+        globalInitDone = true;
       }
-      socketRef.current = socketService.getSocket();
     };
 
     initSocket();
 
     return () => {
-      // Не отключаем сокет при размонтировании — он нужен для всего приложения
+      mountedRef.current = false;
+      // НЕ отключаем сокет при размонтировании компонента
       // socketService.disconnect();
     };
   }, []);

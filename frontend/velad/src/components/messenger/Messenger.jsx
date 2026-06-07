@@ -114,29 +114,37 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     initConversation();
   }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages]);
 
-  // ========== НОВЫЙ ОБРАБОТЧИК СОКЕТА (ТОЛЬКО ЭТОТ) ==========
   useEffect(() => {
-    // Подписываемся на новые сообщения через глобальный сокет
-    const unsubscribe = socketService.onNewMessage((message) => {
-      console.log('📩 New message received in Messenger:', message);
+  let isMounted = true;
+  let unsubscribe = null;
+
+  const setupSocketListener = () => {
+    unsubscribe = socketService.onNewMessage((message) => {
+      if (!isMounted) return;
       
-      // Обновляем список диалогов
+      console.log('📩 New message:', message);
+      
+      // Обновляем диалоги
       loadConversations();
 
-      // Проверяем, относится ли сообщение к текущему открытому диалогу
+      // Добавляем в текущий диалог
       if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
         setMessages(prev => {
           if (prev.some(m => m.id === message.id)) return prev;
           return [...prev, message];
         });
         scrollToBottom();
-      } else if (!selectedConversation && message.receiver_id === currentUserId) {
-        loadConversations();
       }
     });
+  };
 
-    return () => unsubscribe();
-  }, [selectedConversation, loadConversations, currentUserId]);
+  setupSocketListener();
+
+  return () => {
+    isMounted = false;
+    if (unsubscribe) unsubscribe();
+  };
+}, [selectedConversation, loadConversations]);
 
   // ========== ОТПРАВКА СООБЩЕНИЯ ==========
   const sendMessage = async (e) => {
