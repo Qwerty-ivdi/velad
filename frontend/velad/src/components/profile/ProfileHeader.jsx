@@ -1,5 +1,5 @@
 // src/components/profile/ProfileHeader.jsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useState} from 'react';
 import { FaTwitch, FaCalendar, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
 import Messenger from '../messenger/Messenger';
 
@@ -10,7 +10,8 @@ const ProfileHeader = ({
   followersCount, 
   followingCount, 
   onFollow, 
-  onEdit 
+  onEdit, 
+  onOpenMessenger
 }) => {
   const formatDate = (date) => {
     if (!date) return '';
@@ -101,20 +102,10 @@ const ProfileHeader = ({
                 >
                   {isFollowing ? 'Отписаться' : 'Подписаться'}
                 </button>
-              <button className="btn-message" onClick={() => setShowMessenger(true)}>Написать</button>
+              <button className="btn-message" onClick={onOpenMessenger}>Написать</button>
             </>
           )}
         </div>
-
-        {showMessenger && (
-        <Messenger 
-          currentUserId={currentUser?.id}
-          otherUserId={profile.id}
-          otherUserName={profile.display_name}
-          otherUserAvatar={profile.avatar_url}
-          onClose={() => setShowMessenger(false)}
-        />
-      )}
       </div>
     </div>
   );
