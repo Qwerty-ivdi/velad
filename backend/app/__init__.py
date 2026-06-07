@@ -16,17 +16,31 @@ import os
 
 def create_app():
     app = Flask(__name__)
-    app.config.from_object(Config)
-    app.config['SECRET_KEY'] = Config.SECRET_KEY
 
+    # 1. Загружаем конфигурацию
+    app.config.from_object(Config)
+
+    # 2. Устанавливаем СЕКРЕТНЫЕ КЛЮЧИ ДО инициализации JWT
+    app.config['SECRET_KEY'] = Config.SECRET_KEY
+    app.config['JWT_SECRET_KEY'] = Config.SECRET_KEY
+    app.config['JWT_TOKEN_LOCATION'] = ['headers']  # ✅ КЛЮЧЕВОЕ ДОБАВЛЕНИЕ
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 604800  # 7 дней
+    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = 2592000  # 30 дней
+
+    # 3. Настройка CORS
     CORS(app,
          origins=["http://localhost:3000", "https://veladtwitch.vercel.app"],
          supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization', 'Access-Control-Allow-Origin'],
          allow_methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
+    # 4. Инициализация сервиса БД
     db_service.init_app(app)
 
+    # 5. Инициализация JWTManager (ПОСЛЕ настройки конфигурации)
+    jwt = JWTManager(app)  # ✅ ДОЛЖНО БЫТЬ ДО blueprints
+
+    # 6. Настройка SocketIO
     socketio = SocketIO(
         app,
         cors_allowed_origins=["http://localhost:3000", "https://veladtwitch.vercel.app"],
@@ -37,7 +51,7 @@ def create_app():
         engineio_logger=True
     )
 
-    # Регистрация Blueprints
+    # 7. Регистрация Blueprints (ПОСЛЕ инициализации JWT)
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(profile_bp, url_prefix='/api')
     app.register_blueprint(posts_bp, url_prefix='/api')
@@ -45,9 +59,10 @@ def create_app():
     app.register_blueprint(stats_bp, url_prefix='/api')
     app.register_blueprint(twitch_bp, url_prefix='/api/twitch')
 
-    # Регистрация обработчиков SocketIO
+    # 8. Регистрация обработчиков SocketIO
     register_socket_handlers(socketio, db_service)
 
+    # 9. OPTIONS обработчик для CORS preflight
     @app.route('/socket.io/', methods=['OPTIONS'])
     @app.route('/socket.io/<path:path>', methods=['OPTIONS'])
     def socketio_options(path=None):
