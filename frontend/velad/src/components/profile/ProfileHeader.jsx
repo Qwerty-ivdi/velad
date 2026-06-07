@@ -11,7 +11,7 @@ const ProfileHeader = ({
   onFollow, 
   onEdit 
 }) => {
-  const formatDate = (date) => {
+  const formatDate = ({date, onOpenMessenger}) => {
     if (!date) return '';
     return new Date(date).toLocaleDateString('ru-RU', {
       year: 'numeric',
@@ -99,7 +99,7 @@ const ProfileHeader = ({
                 >
                   {isFollowing ? 'Отписаться' : 'Подписаться'}
                 </button>
-              <button className="btn-message">Написать</button>
+              <button className="btn-message" onClick={onOpenMessenger}>Написать</button>
             </>
           )}
         </div>

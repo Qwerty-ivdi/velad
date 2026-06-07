@@ -9,47 +9,130 @@ const CreatePost = ({ token, onPostCreated }) => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Максимальные ограничения
+  const MAX_IMAGES = 4;  // максимум 4 изображения на пост
+  const MAX_FILE_SIZE_MB = 2;  // максимум 2MB на изображение
+  const MAX_TOTAL_SIZE_MB = 5;  // максимум 5MB на все изображения
+
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          // Вычисляем новые размеры (максимум 1200px по ширине или высоте)
+          let width = img.width;
+          let height = img.height;
+          const maxSize = 1200;
+          
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            } else {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
+          }
+          
+          // Создаем canvas для сжатия
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Сжимаем с качеством 0.7
+          canvas.toBlob((blob) => {
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          }, 'image/jpeg', 0.7);
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
     
+    // Проверка на количество изображений
+    if (images.length + files.length > MAX_IMAGES) {
+      setError(`Максимум ${MAX_IMAGES} изображений на пост`);
+      return;
+    }
+    
     setUploading(true);
     setError(null);
     
-    console.log('📸 Uploading file:', files[0].name);
-    console.log('🔑 Token exists:', !!token);
-    console.log('🌐 API_URL:', API_URL);
+    // Проверка общего размера
+    let totalSize = images.reduce((sum, img) => {
+      // Получаем примерный размер из base64 строки
+      const sizeInBytes = (img.length * 3) / 4;
+      return sum + sizeInBytes;
+    }, 0);
     
-    try {
-      const formData = new FormData();
-      formData.append('file', files[0]);
-      
-      const response = await fetch(`${API_URL}/upload`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-          // НЕ ставьте Content-Type, браузер сам установит multipart/form-data
-        },
-        body: formData
-      });
-      
-      console.log('📡 Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Upload error response:', errorData);
-        throw new Error(errorData.error || `Upload failed: ${response.status}`);
+    for (const file of files) {
+      // Проверка размера файла
+      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        setError(`Файл ${file.name} больше ${MAX_FILE_SIZE_MB}MB`);
+        setUploading(false);
+        return;
       }
       
-      const data = await response.json();
-      console.log('✅ Upload success:', data);
-      setImages(prev => [...prev, data.url]);
-      
+      totalSize += file.size;
+      if (totalSize > MAX_TOTAL_SIZE_MB * 1024 * 1024) {
+        setError(`Общий размер изображений не должен превышать ${MAX_TOTAL_SIZE_MB}MB`);
+        setUploading(false);
+        return;
+      }
+    }
+    
+    try {
+      for (const file of files) {
+        console.log('📸 Uploading file:', file.name, `(${(file.size / 1024).toFixed(2)}KB)`);
+        
+        // Сжимаем изображение
+        let fileToUpload = file;
+        if (file.size > 500 * 1024) {  // Если больше 500KB, сжимаем
+          fileToUpload = await compressImage(file);
+          console.log('📸 Compressed to:', (fileToUpload.size / 1024).toFixed(2), 'KB');
+        }
+        
+        const formData = new FormData();
+        formData.append('file', fileToUpload);
+        
+        const response = await fetch(`${API_URL}/upload`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Upload failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('✅ Upload success');
+        setImages(prev => [...prev, data.url]);
+      }
     } catch (err) {
       console.error('Upload error:', err);
       setError(err.message);
     } finally {
       setUploading(false);
+      // Очищаем input, чтобы можно было загрузить те же файлы снова
+      e.target.value = '';
     }
   };
 
@@ -65,7 +148,6 @@ const CreatePost = ({ token, onPostCreated }) => {
     setError(null);
     
     try {
-      // ИСПРАВЛЕНО: используем API_URL
       const response = await fetch(`${API_URL}/posts`, {
         method: 'POST',
         headers: {
@@ -104,6 +186,7 @@ const CreatePost = ({ token, onPostCreated }) => {
           onChange={(e) => setContent(e.target.value)}
           placeholder="Что нового? Поделись мыслями..."
           rows="3"
+          maxLength={5000}
         />
         
         {images.length > 0 && (
@@ -120,17 +203,24 @@ const CreatePost = ({ token, onPostCreated }) => {
         )}
         
         <div className="create-post-actions">
-          <label className="image-upload-btn">
+          <label className={`image-upload-btn ${images.length >= MAX_IMAGES ? 'disabled' : ''}`}>
             <FaImage />
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/gif,image/webp"
               multiple
               onChange={handleImageUpload}
-              disabled={uploading}
+              disabled={uploading || images.length >= MAX_IMAGES}
               style={{ display: 'none' }}
             />
           </label>
+          
+          <div className="post-stats-info">
+            {images.length > 0 && (
+              <span className="images-count">{images.length}/{MAX_IMAGES}</span>
+            )}
+            <span className="char-count">{content.length}/5000</span>
+          </div>
           
           <button 
             type="submit" 
