@@ -1,4 +1,3 @@
-# app/__init__.py
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -16,42 +15,40 @@ import os
 
 def create_app():
     app = Flask(__name__)
-
-    # 1. Загружаем конфигурацию
     app.config.from_object(Config)
-
-    # 2. Устанавливаем СЕКРЕТНЫЕ КЛЮЧИ ДО инициализации JWT
     app.config['SECRET_KEY'] = Config.SECRET_KEY
     app.config['JWT_SECRET_KEY'] = Config.SECRET_KEY
-    app.config['JWT_TOKEN_LOCATION'] = ['headers']  # ✅ КЛЮЧЕВОЕ ДОБАВЛЕНИЕ
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 604800  # 7 дней
-    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = 2592000  # 30 дней
+    app.config['JWT_TOKEN_LOCATION'] = ['headers']
 
-    # 3. Настройка CORS
+    # ✅ ПРАВИЛЬНАЯ НАСТРОЙКА CORS
     CORS(app,
-         origins=["http://localhost:3000", "https://veladtwitch.vercel.app"],
+         origins=[
+             "http://localhost:3000",
+             "https://veladtwitch.vercel.app",
+             "https://veladtwitch.vercel.app"  # можно добавить с www
+         ],
          supports_credentials=True,
          allow_headers=['Content-Type', 'Authorization', 'Access-Control-Allow-Origin'],
-         allow_methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+         allow_methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+         expose_headers=['Content-Type', 'Authorization'],
+         max_age=3600  # кэширование preflight на 1 час
+         )
 
-    # 4. Инициализация сервиса БД
     db_service.init_app(app)
 
-    # 5. Инициализация JWTManager (ПОСЛЕ настройки конфигурации)
-    jwt = JWTManager(app)  # ✅ ДОЛЖНО БЫТЬ ДО blueprints
+    # JWT Manager
+    jwt = JWTManager(app)
 
-    # 6. Настройка SocketIO
+    # SocketIO
     socketio = SocketIO(
         app,
         cors_allowed_origins=["http://localhost:3000", "https://veladtwitch.vercel.app"],
         async_mode='threading',
         ping_timeout=60,
-        ping_interval=25,
-        logger=True,
-        engineio_logger=True
+        ping_interval=25
     )
 
-    # 7. Регистрация Blueprints (ПОСЛЕ инициализации JWT)
+    # Blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(profile_bp, url_prefix='/api')
     app.register_blueprint(posts_bp, url_prefix='/api')
@@ -59,20 +56,16 @@ def create_app():
     app.register_blueprint(stats_bp, url_prefix='/api')
     app.register_blueprint(twitch_bp, url_prefix='/api/twitch')
 
-    # 8. Регистрация обработчиков SocketIO
+    # Socket handlers
     register_socket_handlers(socketio, db_service)
 
-    # 9. OPTIONS обработчик для CORS preflight
-    @app.route('/socket.io/', methods=['OPTIONS'])
-    @app.route('/socket.io/<path:path>', methods=['OPTIONS'])
-    def socketio_options(path=None):
-        from flask import make_response
-        response = make_response()
-        response.headers['Access-Control-Allow-Origin'] = 'https://veladtwitch.vercel.app'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return response, 200
+    @app.after_request
+    def after_request(response):
+        response.headers.add('Access-Control-Allow-Origin', 'https://veladtwitch.vercel.app')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
 
     @app.route('/health', methods=['GET'])
     def health_check():
