@@ -8,7 +8,7 @@ const RegisterPage = ({ setUser }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     username: '',
-    display_name: '',
+    displayName: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -105,7 +105,7 @@ const RegisterPage = ({ setUser }) => {
               name="displayName"
               type="text"
               required
-              value={formData.display_name}
+              value={formData.displayName}
               onChange={handleChange}
               className="form-input"
               placeholder="Отображаемое имя"
