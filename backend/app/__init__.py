@@ -36,7 +36,16 @@ def create_app():
 
     db_service.init_app(app)
 
-    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+    socketio = SocketIO(
+        app,
+        cors_allowed_origins=["http://localhost:3000", "https://veladtwitch.vercel.app"],
+        async_mode='threading',
+        ping_timeout=60,  # таймаут пинга 60 сек
+        ping_interval=25,  # интервал пинга 25 сек
+        max_http_buffer_size=1e6,  # макс размер сообщения 1MB
+        logger=False,  # отключаем логи (экономия ресурсов)
+        engineio_logger=False  # отключаем логи EngineIO
+    )
 
     # Регистрация Blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
