@@ -4,17 +4,12 @@ import { io } from 'socket.io-client';
 class SocketService {
   constructor() {
     this.socket = null;
+    this.connected = false;
   }
 
   connect(token) {
-    if (this.socket && this.socket.connected) {
-      console.log('Socket already connected');
+    if (this.socket && this.connected) {
       return this.socket;
-    }
-
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
     }
 
     const isProduction = window.location.hostname !== 'localhost';
@@ -24,37 +19,31 @@ class SocketService {
     
     console.log('🔌 Connecting to WebSocket at:', socketUrl);
     
+    // Используем polling если websocket не работает
     this.socket = io(socketUrl, {
-      transports: ['websocket', 'polling'],  // websocket приоритет
+      transports: ['polling', 'websocket'],  // polling как fallback
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      timeout: 10000,
-      path: '/socket.io/',
-      withCredentials: true
+      timeout: 20000
     });
 
     this.socket.on('connect', () => {
-      console.log('✅ WebSocket connected, id:', this.socket.id);
-      if (token) {
-        this.socket.emit('authenticate', { token });
-      }
+      console.log('✅ WebSocket connected');
+      this.socket.emit('authenticate', { token });
     });
 
     this.socket.on('authenticated', (data) => {
-      console.log('✅ Socket authenticated:', data);
+      console.log('✅ Authenticated:', data);
+      this.connected = true;
     });
 
     this.socket.on('auth_error', (error) => {
-      console.error('❌ Socket auth error:', error);
+      console.error('❌ Auth error:', error);
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error);
-    });
-
-    this.socket.on('disconnect', (reason) => {
-      console.log('🔌 Socket disconnected:', reason);
+      console.error('❌ WebSocket connection error:', error);
     });
 
     return this.socket;
@@ -64,6 +53,7 @@ class SocketService {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
+      this.connected = false;
     }
   }
 
@@ -72,7 +62,7 @@ class SocketService {
   }
 
   isConnected() {
-    return this.socket?.connected === true;
+    return this.connected && this.socket?.connected;
   }
 }
 
