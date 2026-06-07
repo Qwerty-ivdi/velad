@@ -290,6 +290,7 @@ const handleFollow = async () => {
     followingCount={profile.following_count}
     onFollow={handleFollow}
     onEdit={() => setIsEditing(true)}
+    onOpenMessenger={() => setShowMessenger(false)}
   />
 
       {isOwnProfile && (

@@ -101,9 +101,7 @@ const ProfileHeader = ({
                 >
                   {isFollowing ? 'Отписаться' : 'Подписаться'}
                 </button>
-              <button className="className=nav-icon-btn messenger-btn" 
-                onClick={onOpenMessenger}
-                title="Сообщения">Написать</button>
+              <button className="btn-message" onClick={onOpenMessenger}>Написать</button>
             </>
           )}
         </div>
