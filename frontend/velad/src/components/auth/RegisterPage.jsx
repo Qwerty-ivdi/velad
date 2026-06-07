@@ -24,48 +24,63 @@ const RegisterPage = ({ setUser }) => {
   };
 
   const handleEmailRegister = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Пароли не совпадают');
-      setLoading(false);
-      return;
-    }
+  if (formData.password !== formData.confirmPassword) {
+    setError('Пароли не совпадают');
+    setLoading(false);
+    return;
+  }
 
-    if (formData.password.length < 6) {
-      setError('Пароль должен быть не менее 6 символов');
-      setLoading(false);
-      return;
-    }
+  if (formData.password.length < 6) {
+    setError('Пароль должен быть не менее 6 символов');
+    setLoading(false);
+    return;
+  }
 
-    try {
-      // Регистрация
-      await api.register({
-        email: formData.email,
-        password: formData.password,
-        username: formData.username,
-        display_name: formData.display_name
-      });
+  try {
+    console.log('📝 Registering with data:', {
+      email: formData.email,
+      username: formData.username,
+      display_name: formData.displayName
+    });
 
-      // Автоматический вход после регистрации
-      const loginResult = await api.login({
-        email: formData.email,
-        password: formData.password
-      });
+    // Регистрация
+    const registerResult = await api.register({
+      email: formData.email,
+      password: formData.password,
+      username: formData.username,
+      display_name: formData.displayName
+    });
+    
+    console.log('✅ Registration successful:', registerResult);
 
-      api.setToken(loginResult.access_token);
-      api.setUser(loginResult.user);
-      setUser(loginResult.user);
-      navigate('/profile');
-      
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Автоматический вход после регистрации
+    const loginResult = await api.login({
+      email: formData.email,
+      password: formData.password
+    });
+
+    console.log('✅ Login successful:', loginResult);
+
+    api.setToken(loginResult.access_token);
+    api.setUser(loginResult.user);
+    setUser(loginResult.user);
+    navigate('/profile');
+    
+  } catch (err) {
+    console.error('❌ Registration error DETAILS:', err);
+    console.error('❌ Error message:', err.message);
+    console.error('❌ Full error object:', JSON.stringify(err, null, 2));
+    
+    // Показываем более подробную ошибку
+    setError(err.message || 'Ошибка регистрации. Проверьте консоль.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleTwitchRegister = () => {
     setLoading(true);
