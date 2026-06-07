@@ -9,7 +9,8 @@ const ProfileHeader = ({
   followersCount, 
   followingCount, 
   onFollow, 
-  onEdit 
+  onEdit,
+  onOpenMessenger
 }) => {
   const formatDate = (date) => {
     if (!date) return '';
@@ -99,7 +100,7 @@ const ProfileHeader = ({
                 >
                   {isFollowing ? 'Отписаться' : 'Подписаться'}
                 </button>
-              <button className="btn-message">Написать</button>
+              <button className="btn-message" onClick={onOpenMessenger}>Написать</button>
             </>
           )}
         </div>
