@@ -115,36 +115,25 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages]);
 
   useEffect(() => {
-  let isMounted = true;
-  let unsubscribe = null;
+  if (!currentUserId) return;
+  
+  console.log(`📩 Setting up message listener for user ${currentUserId}`);
+  
+  const unsubscribe = socketService.onNewMessage(currentUserId, (message) => {
+    console.log('📩 New message:', message);
+    loadConversations();
 
-  const setupSocketListener = () => {
-    unsubscribe = socketService.onNewMessage((message) => {
-      if (!isMounted) return;
-      
-      console.log('📩 New message:', message);
-      
-      // Обновляем диалоги
-      loadConversations();
+    if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
+      setMessages(prev => {
+        if (prev.some(m => m.id === message.id)) return prev;
+        return [...prev, message];
+      });
+      scrollToBottom();
+    }
+  });
 
-      // Добавляем в текущий диалог
-      if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
-        setMessages(prev => {
-          if (prev.some(m => m.id === message.id)) return prev;
-          return [...prev, message];
-        });
-        scrollToBottom();
-      }
-    });
-  };
-
-  setupSocketListener();
-
-  return () => {
-    isMounted = false;
-    if (unsubscribe) unsubscribe();
-  };
-}, [selectedConversation, loadConversations]);
+  return unsubscribe;
+}, [currentUserId, selectedConversation, loadConversations]);
 
   // ========== ОТПРАВКА СООБЩЕНИЯ ==========
   const sendMessage = async (e) => {

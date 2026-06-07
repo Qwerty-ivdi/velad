@@ -1,36 +1,21 @@
 // src/hooks/useSocket.js
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import socketService from '../services/socket';
 import { api } from '../lib/supabase';
 
-let globalInitDone = false;
-
 export const useSocket = () => {
-  const mountedRef = useRef(true);
-
   useEffect(() => {
-    mountedRef.current = true;
+    const token = api.getToken();
+    const user = api.getUser();
     
-    const initSocket = () => {
-      const token = api.getToken();
-      if (!token) return;
-      
-      // Только один раз глобально
-      if (!globalInitDone && mountedRef.current) {
-        console.log('🔌 Initializing socket (once)');
-        socketService.connect(token);
-        globalInitDone = true;
-      }
-    };
-
-    initSocket();
-
-    return () => {
-      mountedRef.current = false;
-      // НЕ отключаем сокет при размонтировании компонента
-      // socketService.disconnect();
-    };
+    if (!token || !user?.id) {
+      console.log('⏭️ No token or user, skipping socket');
+      return;
+    }
+    
+    console.log(`🔌 Initializing socket for user ${user.id}`);
+    socketService.connect(user.id, token);
+    
+    // При размонтировании НЕ отключаем сокет — он нужен для всего приложения
   }, []);
-
-  return socketService;
 };

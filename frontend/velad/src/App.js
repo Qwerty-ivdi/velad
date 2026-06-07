@@ -25,19 +25,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const token = api.getToken();
 
-  useEffect(() => {
-    const token = api.getToken();
-    const storedUser = api.getUser();
-    
-    if (token && storedUser) {
-      setUser(storedUser);
-      
-      // ✅ ПОДКЛЮЧАЕМ СОКЕТ СРАЗУ ПОСЛЕ ВХОДА
-      console.log('🔌 Connecting socket on app start');
-      socketService.connect(token);
-    }
-    setLoading(false);
-  }, []);
+  useSocket();
 
   const handleLogout = () => {
     api.removeToken();
