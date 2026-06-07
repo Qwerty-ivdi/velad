@@ -63,7 +63,7 @@ def register():
             return jsonify({'error': 'Неверный формат email'}), 400
 
         if not validate_username(username):
-            return jsonify({'error': 'Имя пользователя должно содержать 3-30 символов'}), 400
+            return jsonify({'error': 'Имя пользователя должно содержать 3-30 символов и иметь талько латинские буквы'}), 400
 
         if len(password) < 6:
             return jsonify({'error': 'Пароль должен быть не менее 6 символов'}), 400
