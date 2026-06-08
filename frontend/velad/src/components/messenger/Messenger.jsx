@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../lib/supabase';
 import { API_URL } from '../../config';
-import socketService from '../../services/socket';
 import './Messenger.css';
 
 const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar, onClose }) => {
@@ -14,7 +13,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // ========== ЗАГРУЗКА ДИАЛОГОВ ==========
   const loadConversations = useCallback(async () => {
     try {
       const token = api.getToken();
@@ -41,7 +39,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, []);
 
-  // ========== ЗАГРУЗКА СООБЩЕНИЙ ==========
   const loadMessages = useCallback(async (conversationId) => {
     try {
       const token = api.getToken();
@@ -57,7 +54,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       setMessages(data || []);
       scrollToBottom();
       
-      // Отметить как прочитанное
       await fetch(`${API_URL}/conversations/${conversationId}/read`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -69,12 +65,10 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, [loadConversations]);
 
-  // ========== ЗАГРУЗКА ДИАЛОГОВ ПРИ МОНТИРОВАНИИ ==========
   useEffect(() => {
     loadConversations().finally(() => setLoading(false));
   }, [loadConversations]);
 
-  // ========== ИНИЦИАЛИЗАЦИЯ ДИАЛОГА С ДРУГИМ ПОЛЬЗОВАТЕЛЕМ ==========
   useEffect(() => {
     if (!otherUserId) return;
 
@@ -114,37 +108,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     initConversation();
   }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages]);
 
-  useEffect(() => {
-  if (!currentUserId) return;
-  
-  console.log(`📩 Setting up message listener for user ${currentUserId}`);
-  
-  const unsubscribe = socketService.onNewMessage(currentUserId, (message) => {
-    console.log('📩 New message:', message);
-    loadConversations();
-
-    if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
-      setMessages(prev => {
-        if (prev.some(m => m.id === message.id)) return prev;
-        return [...prev, message];
-      });
-      scrollToBottom();
-    }
-  });
-
-  return unsubscribe;
-}, [currentUserId, selectedConversation, loadConversations]);
-
-  useEffect(() => {
-  console.log('🔍 Socket diagnostic:', {
-    hasSocket: !!socketService.getSocket(),
-    isConnected: socketService.isConnected(),
-    currentUserId,
-    handlers: socketService.messageHandlers?.get(currentUserId)?.length || 0
-  });
-}, [currentUserId]);
-
-  // ========== ОТПРАВКА СООБЩЕНИЯ ==========
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
@@ -153,7 +116,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     const messageContent = newMessage.trim();
     setNewMessage('');
 
-    // Временное сообщение
     const tempMessage = {
       id: 'temp-' + Date.now(),
       sender_id: currentUserId,
@@ -167,35 +129,27 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
 
     try {
       const token = api.getToken();
-      const socket = socketService.getSocket();
-
-      if (socket && socketService.isConnected()) {
-        socket.emit('send_message', {
-          token: token,
+      
+      const response = await fetch(`${API_URL}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
           receiver_id: selectedConversation.other_user_id,
           content: messageContent
-        });
-      } else {
-        // REST fallback
-        const response = await fetch(`${API_URL}/messages`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            receiver_id: selectedConversation.other_user_id,
-            content: messageContent
-          })
-        });
+        })
+      });
 
-        if (response.ok) {
-          const result = await response.json();
-          setMessages(prev => prev.map(msg =>
-            msg.id === tempMessage.id ? result : msg
-          ));
-          loadConversations();
-        }
+      if (response.ok) {
+        const result = await response.json();
+        setMessages(prev => prev.map(msg =>
+          msg.id === tempMessage.id ? result : msg
+        ));
+        loadConversations();
+      } else {
+        throw new Error('Failed to send');
       }
     } catch (err) {
       console.error('Error sending message:', err);
@@ -237,7 +191,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       </div>
 
       <div className="messenger-body">
-        {/* Список диалогов */}
         <div className="conversations-list">
           {conversations.length === 0 && !otherUserId ? (
             <div className="no-conversations">
@@ -268,7 +221,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
           )}
         </div>
 
-        {/* Область сообщений */}
         {selectedConversation ? (
           <div className="messages-area">
             <div className="messages-header">

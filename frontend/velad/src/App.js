@@ -34,7 +34,7 @@ function App() {
       
       // ✅ ПОДКЛЮЧАЕМ СОКЕТ СРАЗУ ПОСЛЕ ВХОДА
       console.log('🔌 Connecting socket on app start');
-      socketService.connect(token);
+      //socketService.connect(token);
     }
     setLoading(false);
   }, []);
