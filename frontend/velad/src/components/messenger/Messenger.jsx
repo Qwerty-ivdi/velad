@@ -14,39 +14,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // ========== ПОДКЛЮЧЕНИЕ СОКЕТА ==========
-  useEffect(() => {
-    if (!currentUserId) return;
-    
-    const token = api.getToken();
-    if (!token) return;
-    
-    console.log('🔌 Connecting socket for user:', currentUserId);
-    socketService.connect(currentUserId, token);
-    
-    // Подписываемся на новые сообщения
-    const handleNewMessage = (message) => {
-      console.log('📩 New message via socket:', message);
-      loadConversations();
-      
-      if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
-        setMessages(prev => {
-          if (prev.some(m => m.id === message.id)) return prev;
-          return [...prev, message];
-        });
-        scrollToBottom();
-      }
-    };
-    
-    socketService.onMessage(handleNewMessage);
-    
-    return () => {
-      console.log('🔌 Disconnecting socket');
-      socketService.disconnect();
-    };
-  }, [currentUserId]);
-
-  // ========== ОСТАЛЬНЫЕ ХУКИ ==========
+  // ========== ЗАГРУЗКА ДИАЛОГОВ ==========
   const loadConversations = useCallback(async () => {
     try {
       const token = api.getToken();
@@ -70,6 +38,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, []);
 
+  // ========== ЗАГРУЗКА СООБЩЕНИЙ ==========
   const loadMessages = useCallback(async (conversationId) => {
     try {
       const token = api.getToken();
@@ -96,10 +65,58 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, [loadConversations]);
 
+  // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ И ПОЛУЧЕНИЕ СООБЩЕНИЙ ==========
+  useEffect(() => {
+    if (!currentUserId) return;
+    
+    const token = api.getToken();
+    if (!token) return;
+    
+    // Подключаем сокет
+    socketService.connect(currentUserId, token);
+    
+    // Подписываемся на новые сообщения
+    const unsubscribe = socketService.onMessage((message) => {
+      console.log('📩 New message via WebSocket:', message);
+      
+      // Обновляем список диалогов
+      loadConversations();
+      
+      // Если сообщение для текущего открытого диалога
+      if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
+        scrollToBottom();
+      }
+    });
+    
+    // Вход в комнату диалога после аутентификации
+    const handleAuthenticated = () => {
+      if (selectedConversation?.id) {
+        console.log(`🔗 Joining conversation room: ${selectedConversation.id}`);
+        socketService.socket?.emit('join_conversation', {
+          conversation_id: selectedConversation.id
+        });
+      }
+    };
+    
+    socketService.onAuthenticated(handleAuthenticated);
+    
+    return () => {
+      unsubscribe();
+      socketService.offAuthenticated(handleAuthenticated);
+      console.log('🔌 WebSocket cleanup');
+    };
+  }, [currentUserId, selectedConversation, loadConversations]);
+
+  // ========== ЗАГРУЗКА ДИАЛОГОВ ПРИ МОНТИРОВАНИИ ==========
   useEffect(() => {
     loadConversations().finally(() => setLoading(false));
   }, [loadConversations]);
 
+  // ========== ИНИЦИАЛИЗАЦИЯ ДИАЛОГА С ДРУГИМ ПОЛЬЗОВАТЕЛЕМ ==========
   useEffect(() => {
     if (!otherUserId) return;
 
@@ -139,18 +156,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     initConversation();
   }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages]);
 
-  // Вход в комнату диалога при выборе диалога
-  useEffect(() => {
-    if (!selectedConversation?.id) return;
-    
-    if (socketService.isConnected()) {
-      console.log(`🔗 Joining conversation room: ${selectedConversation.id}`);
-      socketService.socket.emit('join_conversation', {
-        conversation_id: selectedConversation.id
-      });
-    }
-  }, [selectedConversation]);
-
+  // ========== ОТПРАВКА СООБЩЕНИЯ ==========
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;

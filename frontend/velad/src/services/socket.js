@@ -6,11 +6,11 @@ class SocketService {
     this.socket = null;
     this.connected = false;
     this.messageHandler = null;
+    this.authHandlers = [];
   }
 
   connect(userId, token) {
     if (this.socket?.connected) {
-      console.log('Socket already connected');
       return this.socket;
     }
 
@@ -41,6 +41,7 @@ class SocketService {
     this.socket.on('authenticated', (data) => {
       console.log('✅ Socket authenticated:', data);
       this.connected = true;
+      this.authHandlers.forEach(handler => handler(data));
     });
 
     this.socket.on('new_message', (message) => {
@@ -69,6 +70,14 @@ class SocketService {
 
   onMessage(handler) {
     this.messageHandler = handler;
+    return () => { this.messageHandler = null; };
+  }
+
+  onAuthenticated(handler) {
+    this.authHandlers.push(handler);
+    return () => {
+      this.authHandlers = this.authHandlers.filter(h => h !== handler);
+    };
   }
 
   disconnect() {
@@ -77,6 +86,7 @@ class SocketService {
       this.socket = null;
       this.connected = false;
       this.messageHandler = null;
+      this.authHandlers = [];
     }
   }
 }
