@@ -13,6 +13,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
+  const roomJoinedRef = useRef(false);
 
   // ========== ЗАГРУЗКА ДИАЛОГОВ ==========
   const loadConversations = useCallback(async () => {
@@ -65,14 +66,26 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, [loadConversations]);
 
-  // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ И ПОЛУЧЕНИЕ СООБЩЕНИЙ ==========
+  // ========== ВХОД В КОМНАТУ ДИАЛОГА ==========
+  const joinConversationRoom = useCallback((conversationId) => {
+    if (!conversationId) return;
+    if (!socketService.isConnected()) return;
+    if (roomJoinedRef.current) return;
+    
+    const roomName = `conversation_${conversationId}`;
+    console.log(`🔗 Joining room: ${roomName}`);
+    socketService.socket?.emit('join_room', { room_id: roomName });
+    roomJoinedRef.current = true;
+  }, []);
+
+  // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ ==========
   useEffect(() => {
     if (!currentUserId) return;
     
     const token = api.getToken();
     if (!token) return;
     
-    // Подключаем сокет
+    console.log('🔌 Connecting socket for user:', currentUserId);
     socketService.connect(currentUserId, token);
     
     // Подписываемся на новые сообщения
@@ -83,7 +96,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       loadConversations();
       
       // Если сообщение для текущего открытого диалога
-      if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
+      if (selectedConversation && message.conversation_id === selectedConversation.id) {
         setMessages(prev => {
           if (prev.some(m => m.id === message.id)) return prev;
           return [...prev, message];
@@ -95,10 +108,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     // Вход в комнату диалога после аутентификации
     const handleAuthenticated = () => {
       if (selectedConversation?.id) {
-        console.log(`🔗 Joining conversation room: ${selectedConversation.id}`);
-        socketService.socket?.emit('join_conversation', {
-          conversation_id: selectedConversation.id
-        });
+        joinConversationRoom(selectedConversation.id);
       }
     };
     
@@ -107,9 +117,10 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     return () => {
       unsubscribe();
       socketService.offAuthenticated(handleAuthenticated);
+      roomJoinedRef.current = false;
       console.log('🔌 WebSocket cleanup');
     };
-  }, [currentUserId, selectedConversation, loadConversations]);
+  }, [currentUserId, selectedConversation, loadConversations, joinConversationRoom]);
 
   // ========== ЗАГРУЗКА ДИАЛОГОВ ПРИ МОНТИРОВАНИИ ==========
   useEffect(() => {
@@ -127,6 +138,8 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       if (existing) {
         setSelectedConversation(existing);
         await loadMessages(existing.id);
+        // Вход в комнату диалога
+        joinConversationRoom(existing.id);
       } else {
         const token = api.getToken();
         const response = await fetch(`${API_URL}/conversations/create`, {
@@ -154,9 +167,9 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     };
 
     initConversation();
-  }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages]);
+  }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages, joinConversationRoom]);
 
-  // ========== ОТПРАВКА СООБЩЕНИЯ ==========
+  // ========== ОТПРАВКА СООБЩЕНИЯ (ЧЕРЕЗ WEBSOCKET С REST FALLBACK) ==========
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
@@ -169,6 +182,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       id: 'temp-' + Date.now(),
       sender_id: currentUserId,
       receiver_id: selectedConversation?.other_user_id,
+      conversation_id: selectedConversation?.id,
       content: messageContent,
       created_at: new Date().toISOString(),
       is_temp: true
@@ -176,35 +190,87 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     setMessages(prev => [...prev, tempMessage]);
     scrollToBottom();
 
+    let sentViaWebSocket = false;
+
     try {
       const token = api.getToken();
       
-      const response = await fetch(`${API_URL}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      if (socketService.isConnected()) {
+        // Отправляем через WebSocket
+        console.log('📤 Sending via WebSocket');
+        socketService.socket?.emit('send_message', {
           receiver_id: selectedConversation.other_user_id,
           content: messageContent
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setMessages(prev => prev.map(msg =>
-          msg.id === tempMessage.id ? result : msg
-        ));
-        loadConversations();
+        });
+        sentViaWebSocket = true;
+        
+        // Ждём 2 секунды, если не пришло подтверждение — используем REST
+        setTimeout(async () => {
+          setMessages(prev => {
+            const msg = prev.find(m => m.id === tempMessage.id);
+            if (msg && msg.is_temp) {
+              console.log('⚠️ WebSocket timeout, using REST fallback');
+              // REST fallback
+              const response = await fetch(`${API_URL}/messages`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  receiver_id: selectedConversation.other_user_id,
+                  content: messageContent
+                })
+              });
+              if (response.ok) {
+                const result = await response.json();
+                setMessages(prev => prev.map(m =>
+                  m.id === tempMessage.id ? result : m
+                ));
+                loadConversations();
+              }
+            }
+            return prev;
+          });
+        }, 2000);
       } else {
-        throw new Error('Failed to send');
+        // REST fallback
+        console.log('⚠️ WebSocket not connected, using REST');
+        const response = await fetch(`${API_URL}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            receiver_id: selectedConversation.other_user_id,
+            content: messageContent
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setMessages(prev => prev.map(msg =>
+            msg.id === tempMessage.id ? result : msg
+          ));
+          loadConversations();
+        } else {
+          throw new Error('Failed to send');
+        }
       }
     } catch (err) {
       console.error('Error sending message:', err);
       setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
     } finally {
-      setSending(false);
+      // Если отправка через WebSocket и не было ошибки, не удаляем временное сообщение сразу
+      if (!sentViaWebSocket) {
+        setSending(false);
+      } else {
+        // Для WebSocket сбрасываем sending через 2 секунды
+        setTimeout(() => {
+          setSending(false);
+        }, 2000);
+      }
     }
   };
 
@@ -252,8 +318,10 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
                 key={conv.id}
                 className={`conversation-item ${selectedConversation?.id === conv.id ? 'active' : ''}`}
                 onClick={() => {
+                  roomJoinedRef.current = false;
                   setSelectedConversation(conv);
                   loadMessages(conv.id);
+                  joinConversationRoom(conv.id);
                 }}
               >
                 <img
