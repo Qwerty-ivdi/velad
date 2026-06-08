@@ -1,7 +1,7 @@
 // src/services/socket.js
 import { io } from 'socket.io-client';
 
-class SocketService {
+class socketService {
   constructor() {
     this.socket = null;
     this.callbacks = [];
@@ -73,5 +73,8 @@ class SocketService {
     return this.socket?.connected === true;
   }
 }
+if (typeof window !== 'undefined') {
+  window.socketService = socketService;
+}
 
-export default new SocketService();
+export default socketService;
