@@ -135,6 +135,15 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   return unsubscribe;
 }, [currentUserId, selectedConversation, loadConversations]);
 
+  useEffect(() => {
+  console.log('🔍 Socket diagnostic:', {
+    hasSocket: !!socketService.getSocket(),
+    isConnected: socketService.isConnected(),
+    currentUserId,
+    handlers: socketService.messageHandlers?.get(currentUserId)?.length || 0
+  });
+}, [currentUserId]);
+
   // ========== ОТПРАВКА СООБЩЕНИЯ ==========
   const sendMessage = async (e) => {
     e.preventDefault();

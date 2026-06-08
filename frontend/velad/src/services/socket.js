@@ -42,9 +42,10 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log(`✅ Socket connected for user ${userId}`);
-      this.socket.emit('authenticate', { token, userId });
-    });
+    console.log(`✅ Socket connected for user ${userId}`);
+    // ✅ ПЕРЕДАЁМ userId В АУТЕНТИФИКАЦИЮ
+    this.socket.emit('authenticate', { token, userId });
+  });
 
     this.socket.on('authenticated', (data) => {
       console.log(`✅ Socket authenticated for user ${userId}`);
