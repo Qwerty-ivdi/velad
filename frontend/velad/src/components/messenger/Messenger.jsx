@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../lib/supabase';
 import { API_URL } from '../../config';
+import { io } from 'socket.io-client';
 import './Messenger.css';
 
 const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar, onClose }) => {
@@ -12,6 +13,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
+  const socketRef = useRef(null);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -65,6 +67,69 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, [loadConversations]);
 
+  // ========== ПОДКЛЮЧЕНИЕ СОКЕТА ТОЛЬКО ДЛЯ ПРИЁМА ==========
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const token = api.getToken();
+    if (!token) return;
+
+    const isProduction = window.location.hostname !== 'localhost';
+    const socketUrl = isProduction 
+      ? 'https://velad-production.up.railway.app' 
+      : 'http://localhost:5000';
+    
+    console.log(`🔌 Connecting socket for user ${currentUserId}`);
+    
+    socketRef.current = io(socketUrl, {
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+      timeout: 10000,
+      forceNew: true
+    });
+
+    socketRef.current.on('connect', () => {
+      console.log('✅ Socket connected');
+      socketRef.current.emit('authenticate', { token, userId: currentUserId });
+    });
+
+    socketRef.current.on('authenticated', () => {
+      console.log('✅ Socket authenticated');
+    });
+
+    socketRef.current.on('new_message', (message) => {
+      console.log('📩 New message via socket:', message);
+      
+      loadConversations();
+      
+      if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
+        scrollToBottom();
+      }
+    });
+
+    socketRef.current.on('connect_error', (error) => {
+      console.error('❌ Socket error:', error.message);
+    });
+
+    socketRef.current.on('disconnect', () => {
+      console.log('🔌 Socket disconnected');
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [currentUserId]);
+
+  // ========== ИНИЦИАЛИЗАЦИЯ ==========
   useEffect(() => {
     loadConversations().finally(() => setLoading(false));
   }, [loadConversations]);
@@ -108,6 +173,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     initConversation();
   }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages]);
 
+  // ========== ОТПРАВКА СООБЩЕНИЯ (ТОЛЬКО REST) ==========
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
