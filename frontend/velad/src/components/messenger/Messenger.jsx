@@ -15,7 +15,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   const messagesEndRef = useRef(null);
   const roomJoinedRef = useRef(false);
 
-  // ========== ЗАГРУЗКА ДИАЛОГОВ ==========
   const loadConversations = useCallback(async () => {
     try {
       const token = api.getToken();
@@ -39,7 +38,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, []);
 
-  // ========== ЗАГРУЗКА СООБЩЕНИЙ ==========
   const loadMessages = useCallback(async (conversationId) => {
     try {
       const token = api.getToken();
@@ -66,7 +64,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, [loadConversations]);
 
-  // ========== ВХОД В КОМНАТУ ДИАЛОГА ==========
   const joinConversationRoom = useCallback((conversationId) => {
     if (!conversationId) return;
     if (!socketService.isConnected()) return;
@@ -78,7 +75,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     roomJoinedRef.current = true;
   }, []);
 
-  // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ ==========
   useEffect(() => {
     if (!currentUserId) return;
     
@@ -88,14 +84,11 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     console.log('🔌 Connecting socket for user:', currentUserId);
     socketService.connect(currentUserId, token);
     
-    // Подписываемся на новые сообщения
     const unsubscribe = socketService.onMessage((message) => {
       console.log('📩 New message via WebSocket:', message);
       
-      // Обновляем список диалогов
       loadConversations();
       
-      // Если сообщение для текущего открытого диалога
       if (selectedConversation && message.conversation_id === selectedConversation.id) {
         setMessages(prev => {
           if (prev.some(m => m.id === message.id)) return prev;
@@ -105,7 +98,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       }
     });
     
-    // Вход в комнату диалога после аутентификации
     const handleAuthenticated = () => {
       if (selectedConversation?.id) {
         joinConversationRoom(selectedConversation.id);
@@ -122,12 +114,10 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     };
   }, [currentUserId, selectedConversation, loadConversations, joinConversationRoom]);
 
-  // ========== ЗАГРУЗКА ДИАЛОГОВ ПРИ МОНТИРОВАНИИ ==========
   useEffect(() => {
     loadConversations().finally(() => setLoading(false));
   }, [loadConversations]);
 
-  // ========== ИНИЦИАЛИЗАЦИЯ ДИАЛОГА С ДРУГИМ ПОЛЬЗОВАТЕЛЕМ ==========
   useEffect(() => {
     if (!otherUserId) return;
 
@@ -138,7 +128,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       if (existing) {
         setSelectedConversation(existing);
         await loadMessages(existing.id);
-        // Вход в комнату диалога
         joinConversationRoom(existing.id);
       } else {
         const token = api.getToken();
@@ -169,7 +158,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     initConversation();
   }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages, joinConversationRoom]);
 
-  // ========== ОТПРАВКА СООБЩЕНИЯ (ЧЕРЕЗ WEBSOCKET С REST FALLBACK) ==========
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
@@ -190,28 +178,22 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     setMessages(prev => [...prev, tempMessage]);
     scrollToBottom();
 
-    let sentViaWebSocket = false;
-
     try {
       const token = api.getToken();
       
       if (socketService.isConnected()) {
-        // Отправляем через WebSocket
         console.log('📤 Sending via WebSocket');
         socketService.socket?.emit('send_message', {
           receiver_id: selectedConversation.other_user_id,
           content: messageContent
         });
-        sentViaWebSocket = true;
         
-        // Ждём 2 секунды, если не пришло подтверждение — используем REST
-        setTimeout(async () => {
+        setTimeout(() => {
           setMessages(prev => {
             const msg = prev.find(m => m.id === tempMessage.id);
             if (msg && msg.is_temp) {
               console.log('⚠️ WebSocket timeout, using REST fallback');
-              // REST fallback
-              const response = await fetch(`${API_URL}/messages`, {
+              fetch(`${API_URL}/messages`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${token}`,
@@ -221,20 +203,24 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
                   receiver_id: selectedConversation.other_user_id,
                   content: messageContent
                 })
-              });
-              if (response.ok) {
-                const result = await response.json();
-                setMessages(prev => prev.map(m =>
-                  m.id === tempMessage.id ? result : m
-                ));
-                loadConversations();
-              }
+              })
+              .then(response => response.ok ? response.json() : null)
+              .then(result => {
+                if (result) {
+                  setMessages(prev => prev.map(m =>
+                    m.id === tempMessage.id ? result : m
+                  ));
+                  loadConversations();
+                }
+              })
+              .catch(err => console.error('REST fallback failed:', err));
             }
             return prev;
           });
         }, 2000);
+        
+        setTimeout(() => setSending(false), 2000);
       } else {
-        // REST fallback
         console.log('⚠️ WebSocket not connected, using REST');
         const response = await fetch(`${API_URL}/messages`, {
           method: 'POST',
@@ -257,20 +243,12 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
         } else {
           throw new Error('Failed to send');
         }
+        setSending(false);
       }
     } catch (err) {
       console.error('Error sending message:', err);
       setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
-    } finally {
-      // Если отправка через WebSocket и не было ошибки, не удаляем временное сообщение сразу
-      if (!sentViaWebSocket) {
-        setSending(false);
-      } else {
-        // Для WebSocket сбрасываем sending через 2 секунды
-        setTimeout(() => {
-          setSending(false);
-        }, 2000);
-      }
+      setSending(false);
     }
   };
 
