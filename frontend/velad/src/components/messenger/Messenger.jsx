@@ -14,6 +14,39 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
 
+  // ========== ПОДКЛЮЧЕНИЕ СОКЕТА ==========
+  useEffect(() => {
+    if (!currentUserId) return;
+    
+    const token = api.getToken();
+    if (!token) return;
+    
+    console.log('🔌 Connecting socket for user:', currentUserId);
+    socketService.connect(currentUserId, token);
+    
+    // Подписываемся на новые сообщения
+    const handleNewMessage = (message) => {
+      console.log('📩 New message via socket:', message);
+      loadConversations();
+      
+      if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
+        scrollToBottom();
+      }
+    };
+    
+    socketService.onMessage(handleNewMessage);
+    
+    return () => {
+      console.log('🔌 Disconnecting socket');
+      socketService.disconnect();
+    };
+  }, [currentUserId]);
+
+  // ========== ОСТАЛЬНЫЕ ХУКИ ==========
   const loadConversations = useCallback(async () => {
     try {
       const token = api.getToken();
@@ -23,9 +56,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (!response.ok) {
-        return [];
-      }
+      if (!response.ok) return [];
 
       const data = await response.json();
       if (Array.isArray(data)) {
@@ -69,7 +100,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     loadConversations().finally(() => setLoading(false));
   }, [loadConversations]);
 
-  // Инициализация диалога с другим пользователем
   useEffect(() => {
     if (!otherUserId) return;
 
@@ -109,50 +139,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     initConversation();
   }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages]);
 
-  // ========== ✅ НОВЫЙ ОБРАБОТЧИК СООБЩЕНИЙ (ВСТАВЬТЕ ЭТОТ БЛОК) ==========
-  useEffect(() => {
-    // Проверяем, что сокет подключён
-    if (!socketService.socket?.connected) {
-  console.log('⚠️ Socket not connected');
-  return;
-}
-    
-    console.log('📩 Setting up message listener');
-    
-    const handleNewMessage = (message) => {
-      console.log('📩 New message received:', message);
-      
-      // Обновляем список диалогов
-      loadConversations();
-      
-      // Если сообщение для текущего открытого диалога
-      if (selectedConversation && message.conversation_id === selectedConversation.id) {
-        setMessages(prev => {
-          if (prev.some(m => m.id === message.id)) return prev;
-          return [...prev, message];
-        });
-        scrollToBottom();
-      } else if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
-        // Запасной вариант — если conversation_id нет, проверяем по sender_id
-        setMessages(prev => {
-          if (prev.some(m => m.id === message.id)) return prev;
-          return [...prev, message];
-        });
-        scrollToBottom();
-      }
-    };
-    
-    // Подписываемся на событие new_message
-    socketService.socket.on('new_message', handleNewMessage);
-    
-    // Отписываемся при размонтировании
-    return () => {
-      console.log('🔌 Removing message listener');
-      socketService.socket.off('new_message', handleNewMessage);
-    };
-  }, [selectedConversation, loadConversations]);
-  // ========== КОНЕЦ БЛОКА ==========
-
   // Вход в комнату диалога при выборе диалога
   useEffect(() => {
     if (!selectedConversation?.id) return;
@@ -187,7 +173,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     try {
       const token = api.getToken();
       
-      // Отправка через REST (работает)
       const response = await fetch(`${API_URL}/messages`, {
         method: 'POST',
         headers: {

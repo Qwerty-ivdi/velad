@@ -5,6 +5,7 @@ class SocketService {
   constructor() {
     this.socket = null;
     this.connected = false;
+    this.messageHandler = null;
   }
 
   connect(userId, token) {
@@ -44,7 +45,6 @@ class SocketService {
 
     this.socket.on('new_message', (message) => {
       console.log('📩 New message received:', message);
-      // Вызываем обработчики
       if (this.messageHandler) {
         this.messageHandler(message);
       }
@@ -63,7 +63,6 @@ class SocketService {
     return this.socket;
   }
 
-  // ✅ ДОБАВЛЕННЫЙ МЕТОД
   isConnected() {
     return this.connected && this.socket?.connected === true;
   }
@@ -77,6 +76,7 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
       this.connected = false;
+      this.messageHandler = null;
     }
   }
 }
