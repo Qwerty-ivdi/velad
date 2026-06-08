@@ -5,6 +5,9 @@ from flask_jwt_extended import decode_token
 from datetime import datetime
 import uuid
 
+# Хранилище для связи socket.id → user_id
+socket_users = {}
+
 
 def register_socket_handlers(socketio, db_service):
     @socketio.on('connect')
@@ -13,7 +16,13 @@ def register_socket_handlers(socketio, db_service):
 
     @socketio.on('disconnect')
     def handle_disconnect():
-        print(f"🔌 Client disconnected: {request.sid}")
+        # Удаляем пользователя из хранилища
+        if request.sid in socket_users:
+            user_id = socket_users[request.sid]
+            print(f"🔌 User {user_id} disconnected, socket: {request.sid}")
+            del socket_users[request.sid]
+        else:
+            print(f"🔌 Client disconnected: {request.sid}")
 
     @socketio.on('authenticate')
     def handle_authenticate(data):
@@ -30,8 +39,8 @@ def register_socket_handlers(socketio, db_service):
                 emit('auth_error', {'error': 'Invalid token'})
                 return
 
-            # ✅ СОХРАНЯЕМ user_id в сессии сокета
-            request.user_id = user_id
+            # Сохраняем связь socket.id → user_id
+            socket_users[request.sid] = user_id
             print(f"✅ User {user_id} authenticated, socket: {request.sid}")
             emit('authenticated', {'user_id': user_id})
 
@@ -45,7 +54,8 @@ def register_socket_handlers(socketio, db_service):
         conversation_id = data.get('conversation_id')
         if conversation_id:
             join_room(conversation_id)
-            print(f"✅ User {request.user_id} joined conversation room {conversation_id}")
+            user_id = socket_users.get(request.sid, 'unknown')
+            print(f"✅ User {user_id} joined conversation room {conversation_id}")
             emit('joined', {'conversation_id': conversation_id})
 
     @socketio.on('send_message')
@@ -111,6 +121,7 @@ def register_socket_handlers(socketio, db_service):
                 'id': str(message_id),
                 'sender_id': sender_id,
                 'receiver_id': receiver_id,
+                'conversation_id': conversation_id,
                 'content': content,
                 'created_at': now.isoformat(),
                 'sender_username': sender_data.get('username'),
@@ -118,6 +129,7 @@ def register_socket_handlers(socketio, db_service):
                 'sender_avatar_url': sender_data.get('avatar_url')
             }
 
+            # Отправляем в комнату диалога
             print(f"📤 Emitting to conversation room: {conversation_id}")
             emit('new_message', message_data, room=conversation_id)
 
@@ -127,7 +139,7 @@ def register_socket_handlers(socketio, db_service):
             print(f"✅ Message sent, conversation_id={conversation_id}")
 
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"❌ Error in send_message: {e}")
             import traceback
             traceback.print_exc()
             emit('error', {'error': str(e)})
