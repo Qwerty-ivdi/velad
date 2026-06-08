@@ -100,4 +100,4 @@ def create_app():
     return app, socketio
 
 if __name__ != '__main__':
-    application, socketio = create_app()
+    app, socketio = create_app()
