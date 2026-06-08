@@ -29,9 +29,10 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('✅ Socket connected');
-      this.socket.emit('authenticate', { token, userId });
-    });
+  console.log('✅ Socket connected, id:', this.socket.id);
+  console.log('📤 Sending authenticate with userId:', userId);
+  this.socket.emit('authenticate', { token, userId });
+});
 
     this.socket.on('authenticated', (data) => {
       console.log('✅ Socket authenticated:', data);

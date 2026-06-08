@@ -68,38 +68,36 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
 
   // ========== WEBSOCKET ==========
   useEffect(() => {
-    if (!currentUserId) return;
-    
-    const token = api.getToken();
-    if (!token) return;
-    
-    console.log('🔌 Connecting socket for user:', currentUserId);
-    socketService.connect(currentUserId, token);
-    
-    const unsubscribe = socketService.onMessage((message) => {
-      console.log('📩 New message via socket:', message);
-      
-      loadConversations();
-      
-      if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
-        setMessages(prev => {
-          if (prev.some(m => m.id === message.id)) return prev;
-          return [...prev, message];
-        });
-        scrollToBottom();
-      }
-    });
-    
-    return () => {
-      unsubscribe();
-      socketService.disconnect();
-    };
-  }, [currentUserId]);
-
-  // ========== ИНИЦИАЛИЗАЦИЯ ==========
-  useEffect(() => {
-    loadConversations().finally(() => setLoading(false));
-  }, [loadConversations]);
+  if (!currentUserId) return;
+  if (socketService.isConnected()) {
+    console.log('Socket already connected, skipping');
+    return;
+  }
+  
+  const token = api.getToken();
+  if (!token) return;
+  
+  console.log('🔌 Connecting socket for user:', currentUserId);
+  socketService.connect(currentUserId, token);
+  
+  const unsubscribe = socketService.onMessage((message) => {
+    console.log('📩 New message via socket:', message);
+    loadConversations();
+    if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
+      setMessages(prev => {
+        if (prev.some(m => m.id === message.id)) return prev;
+        return [...prev, message];
+      });
+      scrollToBottom();
+    }
+  });
+  
+  // НЕ ОТКЛЮЧАЙТЕ СВЯЗЬ ПРИ РАЗМОНТИРОВАНИИ КОМПОНЕНТА
+  // return () => {
+  //   unsubscribe();
+  //   socketService.disconnect();
+  // };
+}, [currentUserId]); // БЕЗ ЗАВИСИМОСТИ ОТ selectedConversation
 
   useEffect(() => {
     if (!otherUserId) return;

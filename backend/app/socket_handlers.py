@@ -44,6 +44,7 @@ def register_socket_handlers(socketio, db_service):
 
     @socketio.on('send_message')
     def handle_send_message(data):
+        print(f"📨 send_message called: {data}")
         try:
             token = data.get('token')
             receiver_id = data.get('receiver_id')
