@@ -166,56 +166,56 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   }, [selectedConversation, loadConversations]);
 
   const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || sending) return;
+  e.preventDefault();
+  if (!newMessage.trim() || sending) return;
 
-    setSending(true);
-    const messageContent = newMessage.trim();
-    setNewMessage('');
+  setSending(true);
+  const messageContent = newMessage.trim();
+  setNewMessage('');
 
-    const tempMessage = {
-      id: 'temp-' + Date.now(),
-      sender_id: currentUserId,
-      receiver_id: selectedConversation?.other_user_id,
-      content: messageContent,
-      created_at: new Date().toISOString(),
-      is_temp: true
-    };
-    setMessages(prev => [...prev, tempMessage]);
-    scrollToBottom();
-
-    try {
-      const token = api.getToken();
-      
-      if (socketService.isConnected()) {
-        console.log('📤 Sending via WebSocket');
-        socketService.socket.emit('send_message', {
-          token: token,
-          receiver_id: selectedConversation.other_user_id,
-          content: messageContent
-        });
-        
-        // Fallback через 2 секунды
-        setTimeout(() => {
-          setMessages(prev => {
-            const msg = prev.find(m => m.id === tempMessage.id);
-            if (msg && msg.is_temp) {
-              console.log('⚠️ WebSocket timeout, using REST');
-              restSendMessage(token, messageContent, tempMessage.id);
-            }
-            return prev;
-          });
-        }, 2000);
-      } else {
-        await restSendMessage(token, messageContent, tempMessage.id);
-      }
-    } catch (err) {
-      console.error('Error sending message:', err);
-      setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
-    } finally {
-      setSending(false);
-    }
+  const tempMessage = {
+    id: 'temp-' + Date.now(),
+    sender_id: currentUserId,
+    receiver_id: selectedConversation?.other_user_id,
+    content: messageContent,
+    created_at: new Date().toISOString(),
+    is_temp: true
   };
+  setMessages(prev => [...prev, tempMessage]);
+  scrollToBottom();
+
+  try {
+    const token = api.getToken();
+    
+    // ✅ ТОЛЬКО REST
+    const response = await fetch(`${API_URL}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        receiver_id: selectedConversation.other_user_id,
+        content: messageContent
+      })
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      setMessages(prev => prev.map(msg =>
+        msg.id === tempMessage.id ? result : msg
+      ));
+      loadConversations();
+    } else {
+      throw new Error('Failed to send');
+    }
+  } catch (err) {
+    console.error('Error sending message:', err);
+    setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
+  } finally {
+    setSending(false);
+  }
+};
 
   const scrollToBottom = () => {
     setTimeout(() => {
