@@ -1,18 +1,25 @@
 // src/services/socket.js
 import { io } from 'socket.io-client';
 
-class socketService {
+class SocketService {
   constructor() {
     this.socket = null;
+    this.currentUserId = null;
     this.callbacks = [];
   }
 
   connect(userId, token) {
-    if (this.socket?.connected) {
+    if (this.socket?.connected && this.currentUserId === userId) {
       console.log('Socket already connected');
       return this.socket;
     }
 
+    if (this.socket) {
+      this.disconnect();
+    }
+
+    this.currentUserId = userId;
+    
     const isProduction = window.location.hostname !== 'localhost';
     const socketUrl = isProduction 
       ? 'https://velad-production.up.railway.app' 
@@ -29,10 +36,9 @@ class socketService {
     });
 
     this.socket.on('connect', () => {
-  console.log('✅ Socket connected, id:', this.socket.id);
-  console.log('📤 Sending authenticate with userId:', userId);
-  this.socket.emit('authenticate', { token, userId });
-});
+      console.log('✅ Socket connected, id:', this.socket.id);
+      this.socket.emit('authenticate', { token, userId });
+    });
 
     this.socket.on('authenticated', (data) => {
       console.log('✅ Socket authenticated:', data);
@@ -61,20 +67,24 @@ class socketService {
     };
   }
 
+  isConnected() {
+    return this.socket?.connected === true;
+  }
+
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
     this.callbacks = [];
-  }
-
-  isConnected() {
-    return this.socket?.connected === true;
+    this.currentUserId = null;
   }
 }
+
+// Делаем глобальным для отладки
 if (typeof window !== 'undefined') {
-  window.socketService = socketService;
+  window.socketService = new SocketService();
 }
 
+const socketService = new SocketService();
 export default socketService;
