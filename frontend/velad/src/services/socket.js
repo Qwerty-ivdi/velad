@@ -20,13 +20,13 @@ class SocketService {
 
     const isProduction = window.location.hostname !== 'localhost';
     const socketUrl = isProduction 
-      ? 'https://velad-production.up.railway.app' 
+      ? 'https://velad.onrender.com' 
       : 'http://localhost:5000';
     
     console.log(`🔌 Creating socket for user ${userId}`);
     
     this.socket = io(socketUrl, {
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
