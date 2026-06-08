@@ -20,17 +20,16 @@ class SocketService {
 
     const isProduction = window.location.hostname !== 'localhost';
     const socketUrl = isProduction 
-      ? 'https://velad.onrender.com' 
+      ? 'https://velad-production-c7d5.up.railway.app' 
       : 'http://localhost:5000';
     
     console.log(`🔌 Creating socket for user ${userId}`);
     
     this.socket = io(socketUrl, {
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      timeout: 10000
+      transports: ['websocket', 'polling'],
+      path: '/socket.io',
+      secure: true,
+      rejectUnauthorized: false
     });
 
     this.socket.on('connect', () => {
