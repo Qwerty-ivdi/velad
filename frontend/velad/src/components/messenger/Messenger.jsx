@@ -112,10 +112,10 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   // ========== ✅ НОВЫЙ ОБРАБОТЧИК СООБЩЕНИЙ (ВСТАВЬТЕ ЭТОТ БЛОК) ==========
   useEffect(() => {
     // Проверяем, что сокет подключён
-    if (!socketService.isConnected()) {
-      console.log('⚠️ Socket not connected, skipping message listener');
-      return;
-    }
+    if (!socketService.socket?.connected) {
+  console.log('⚠️ Socket not connected');
+  return;
+}
     
     console.log('📩 Setting up message listener');
     
