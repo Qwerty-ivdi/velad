@@ -95,3 +95,6 @@ def create_app():
         return response
 
     return app, socketio
+
+if __name__ != '__main__':
+    application, socketio = create_app()
