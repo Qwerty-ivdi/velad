@@ -1,6 +1,6 @@
 # app/socket_handlers.py
 from flask import request
-from flask_socketio import emit, join_room
+from flask_socketio import emit, join_room, leave_room
 from flask_jwt_extended import decode_token
 from datetime import datetime
 import uuid
@@ -18,6 +18,9 @@ def register_socket_handlers(socketio, db_service):
     @socketio.on('authenticate')
     def handle_authenticate(data):
         token = data.get('token')
+        user_id_from_client = data.get('userId')  # ← получаем userId из клиента
+        print(f"🔐 Authenticating: token={token[:50]}..., userId={user_id_from_client}")
+
         if not token:
             emit('auth_error', {'error': 'No token provided'})
             return
@@ -30,9 +33,11 @@ def register_socket_handlers(socketio, db_service):
                 emit('auth_error', {'error': 'Invalid token'})
                 return
 
+            # Сохраняем связь socket.id → user_id
             join_room(user_id)
-            print(f"✅ User {user_id} authenticated")
+            print(f"✅ User {user_id} joined room {user_id}, socket: {request.sid}")
             emit('authenticated', {'user_id': user_id})
+
         except Exception as e:
             print(f"❌ Auth error: {e}")
             emit('auth_error', {'error': str(e)})
@@ -43,6 +48,8 @@ def register_socket_handlers(socketio, db_service):
             token = data.get('token')
             receiver_id = data.get('receiver_id')
             content = data.get('content')
+
+            print(f"📨 send_message called: receiver={receiver_id}, content={content[:50]}")
 
             if not token or not receiver_id or not content:
                 emit('error', {'error': 'Missing fields'})
@@ -55,9 +62,9 @@ def register_socket_handlers(socketio, db_service):
                 emit('error', {'error': 'Invalid token'})
                 return
 
-            print(f"📨 Message from {sender_id} to {receiver_id}: {content[:50]}")
+            print(f"📨 Message from {sender_id} to {receiver_id}")
 
-            # Сохраняем в БД (упрощённо)
+            # Сохраняем в БД
             message_id = uuid.uuid4()
             now = datetime.now()
 
@@ -108,13 +115,17 @@ def register_socket_handlers(socketio, db_service):
                 'sender_avatar_url': sender_data.get('avatar_url')
             }
 
-            # Отправляем получателю
-            emit('new_message', message_data, room=receiver_id, callback=None)
-            # Подтверждаем отправителю
-            emit('message_sent', message_data, room=sender_id, callback=None)
+            # ✅ ОТПРАВЛЯЕМ В КОМНАТУ ПОЛУЧАТЕЛЯ
+            print(f"📤 Emitting new_message to room {receiver_id}")
+            emit('new_message', message_data, room=receiver_id)
 
-            print(f"✅ Message sent")
+            # ✅ ПОДТВЕРЖДАЕМ ОТПРАВИТЕЛЮ
+            emit('message_sent', message_data, room=sender_id)
+
+            print(f"✅ Message sent, conversation_id={conversation_id}")
 
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"❌ Error in send_message: {e}")
+            import traceback
+            traceback.print_exc()
             emit('error', {'error': str(e)})
