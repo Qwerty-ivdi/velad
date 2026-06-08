@@ -19,6 +19,9 @@ from app.routes.twitch_webhook import twitch_webhook_bp
 from app.routes.user import user_bp
 import os
 import dns.resolver
+import sys
+print("Python path:", sys.path)
+print("Starting app...")
 
 dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
 dns.resolver.default_resolver.nameservers = ['8.8.8.8', '8.8.4.4']
