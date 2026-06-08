@@ -15,14 +15,21 @@ import SearchPage from './components/search/SearchPage';
 import './styles/global.css';
 import './styles/navbar.css';
 import './styles/ProfileHeader.css';
-import socketService from './services/socket';
 
 
 function App() {
   const [user, setUser] = useState(null);
   const [showMessenger, setShowMessenger] = useState(false);
   const [loading, setLoading] = useState(true);
-  const token = api.getToken();
+
+  useEffect(() => {
+    const token = api.getToken();
+    const savedUser = api.getUser();
+    if (token && savedUser) {
+      setUser(savedUser);
+    }
+    setLoading(false);
+  }, []);
 
   const handleLogout = () => {
     api.removeToken();
