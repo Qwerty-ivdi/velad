@@ -76,8 +76,12 @@ class SocketService {
   onAuthenticated(handler) {
     this.authHandlers.push(handler);
     return () => {
-      this.authHandlers = this.authHandlers.filter(h => h !== handler);
+      this.offAuthenticated(handler);
     };
+  }
+
+  offAuthenticated(handler) {
+    this.authHandlers = this.authHandlers.filter(h => h !== handler);
   }
 
   disconnect() {
