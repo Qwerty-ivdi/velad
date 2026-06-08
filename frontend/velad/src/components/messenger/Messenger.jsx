@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../lib/supabase';
 import { API_URL } from '../../config';
-import { io } from 'socket.io-client';
+import socketService from '../../services/socket';
 import './Messenger.css';
 
 const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar, onClose }) => {
@@ -13,7 +13,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
-  const socketRef = useRef(null);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -67,39 +66,17 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, [loadConversations]);
 
-  // ========== ПОДКЛЮЧЕНИЕ СОКЕТА ТОЛЬКО ДЛЯ ПРИЁМА ==========
+  // ========== WEBSOCKET ==========
   useEffect(() => {
     if (!currentUserId) return;
-
+    
     const token = api.getToken();
     if (!token) return;
-
-    const isProduction = window.location.hostname !== 'localhost';
-    const socketUrl = isProduction 
-      ? 'https://velad-production.up.railway.app' 
-      : 'http://localhost:5000';
     
-    console.log(`🔌 Connecting socket for user ${currentUserId}`);
+    console.log('🔌 Connecting socket for user:', currentUserId);
+    socketService.connect(currentUserId, token);
     
-    socketRef.current = io(socketUrl, {
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
-      timeout: 10000,
-      forceNew: true
-    });
-
-    socketRef.current.on('connect', () => {
-      console.log('✅ Socket connected');
-      socketRef.current.emit('authenticate', { token, userId: currentUserId });
-    });
-
-    socketRef.current.on('authenticated', () => {
-      console.log('✅ Socket authenticated');
-    });
-
-    socketRef.current.on('new_message', (message) => {
+    const unsubscribe = socketService.onMessage((message) => {
       console.log('📩 New message via socket:', message);
       
       loadConversations();
@@ -112,20 +89,10 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
         scrollToBottom();
       }
     });
-
-    socketRef.current.on('connect_error', (error) => {
-      console.error('❌ Socket error:', error.message);
-    });
-
-    socketRef.current.on('disconnect', () => {
-      console.log('🔌 Socket disconnected');
-    });
-
+    
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
+      unsubscribe();
+      socketService.disconnect();
     };
   }, [currentUserId]);
 
@@ -173,7 +140,33 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     initConversation();
   }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages]);
 
-  // ========== ОТПРАВКА СООБЩЕНИЯ (ТОЛЬКО REST) ==========
+  // ========== ОТПРАВКА СООБЩЕНИЯ ==========
+  const restSendMessage = useCallback(async (token, content, tempId) => {
+    try {
+      const response = await fetch(`${API_URL}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          receiver_id: selectedConversation.other_user_id,
+          content: content
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setMessages(prev => prev.map(msg =>
+          msg.id === tempId ? result : msg
+        ));
+        loadConversations();
+      }
+    } catch (err) {
+      console.error('REST send failed:', err);
+    }
+  }, [selectedConversation, loadConversations]);
+
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
@@ -196,26 +189,27 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     try {
       const token = api.getToken();
       
-      const response = await fetch(`${API_URL}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      if (socketService.isConnected()) {
+        console.log('📤 Sending via WebSocket');
+        socketService.socket.emit('send_message', {
+          token: token,
           receiver_id: selectedConversation.other_user_id,
           content: messageContent
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setMessages(prev => prev.map(msg =>
-          msg.id === tempMessage.id ? result : msg
-        ));
-        loadConversations();
+        });
+        
+        // Fallback через 2 секунды
+        setTimeout(() => {
+          setMessages(prev => {
+            const msg = prev.find(m => m.id === tempMessage.id);
+            if (msg && msg.is_temp) {
+              console.log('⚠️ WebSocket timeout, using REST');
+              restSendMessage(token, messageContent, tempMessage.id);
+            }
+            return prev;
+          });
+        }, 2000);
       } else {
-        throw new Error('Failed to send');
+        await restSendMessage(token, messageContent, tempMessage.id);
       }
     } catch (err) {
       console.error('Error sending message:', err);

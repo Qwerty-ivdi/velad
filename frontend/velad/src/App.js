@@ -15,7 +15,6 @@ import SearchPage from './components/search/SearchPage';
 import './styles/global.css';
 import './styles/navbar.css';
 import './styles/ProfileHeader.css';
-import { useSocket } from './hooks/useSocket';
 import socketService from './services/socket';
 
 
@@ -24,20 +23,6 @@ function App() {
   const [showMessenger, setShowMessenger] = useState(false);
   const [loading, setLoading] = useState(true);
   const token = api.getToken();
-
-  useEffect(() => {
-    const token = api.getToken();
-    const storedUser = api.getUser();
-    
-    if (token && storedUser) {
-      setUser(storedUser);
-      
-      // ✅ ПОДКЛЮЧАЕМ СОКЕТ СРАЗУ ПОСЛЕ ВХОДА
-      console.log('🔌 Connecting socket on app start');
-      //socketService.connect(token);
-    }
-    setLoading(false);
-  }, []);
 
   const handleLogout = () => {
     api.removeToken();
