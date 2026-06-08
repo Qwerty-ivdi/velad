@@ -18,9 +18,6 @@ def register_socket_handlers(socketio, db_service):
     @socketio.on('authenticate')
     def handle_authenticate(data):
         token = data.get('token')
-        user_id_from_client = data.get('userId')  # ← получаем userId из клиента
-        print(f"🔐 Authenticating: token={token[:50]}..., userId={user_id_from_client}")
-
         if not token:
             emit('auth_error', {'error': 'No token provided'})
             return
@@ -33,24 +30,30 @@ def register_socket_handlers(socketio, db_service):
                 emit('auth_error', {'error': 'Invalid token'})
                 return
 
-            # Сохраняем связь socket.id → user_id
-            join_room(user_id)
-            print(f"✅ User {user_id} joined room {user_id}, socket: {request.sid}")
+            # ✅ СОХРАНЯЕМ user_id в сессии сокета
+            request.user_id = user_id
+            print(f"✅ User {user_id} authenticated, socket: {request.sid}")
             emit('authenticated', {'user_id': user_id})
 
         except Exception as e:
             print(f"❌ Auth error: {e}")
             emit('auth_error', {'error': str(e)})
 
+    @socketio.on('join_conversation')
+    def handle_join_conversation(data):
+        """Вход в комнату диалога"""
+        conversation_id = data.get('conversation_id')
+        if conversation_id:
+            join_room(conversation_id)
+            print(f"✅ User {request.user_id} joined conversation room {conversation_id}")
+            emit('joined', {'conversation_id': conversation_id})
+
     @socketio.on('send_message')
     def handle_send_message(data):
-        print(f"📨 send_message called: {data}")
         try:
             token = data.get('token')
             receiver_id = data.get('receiver_id')
             content = data.get('content')
-
-            print(f"📨 send_message called: receiver={receiver_id}, content={content[:50]}")
 
             if not token or not receiver_id or not content:
                 emit('error', {'error': 'Missing fields'})
@@ -63,13 +66,9 @@ def register_socket_handlers(socketio, db_service):
                 emit('error', {'error': 'Invalid token'})
                 return
 
-            print(f"📨 Message from {sender_id} to {receiver_id}")
+            print(f"📨 Message from {sender_id} to {receiver_id}: {content[:50]}")
 
-            # Сохраняем в БД
-            message_id = uuid.uuid4()
-            now = datetime.now()
-
-            # Находим диалог
+            # Находим или создаём диалог
             conv = db_service.execute_query("""
                 SELECT id FROM conversations 
                 WHERE (participant1_id = %s AND participant2_id = %s)
@@ -80,6 +79,7 @@ def register_socket_handlers(socketio, db_service):
                 conversation_id = conv['id']
             else:
                 conv_id = uuid.uuid4()
+                now = datetime.now()
                 db_service.execute_query("""
                     INSERT INTO conversations (id, participant1_id, participant2_id, created_at, last_message_at)
                     VALUES (%s, %s, %s, %s, %s)
@@ -87,6 +87,8 @@ def register_socket_handlers(socketio, db_service):
                 conversation_id = str(conv_id)
 
             # Сохраняем сообщение
+            message_id = uuid.uuid4()
+            now = datetime.now()
             db_service.execute_query("""
                 INSERT INTO messages (id, conversation_id, sender_id, content, created_at)
                 VALUES (%s, %s, %s, %s, %s)
@@ -116,17 +118,16 @@ def register_socket_handlers(socketio, db_service):
                 'sender_avatar_url': sender_data.get('avatar_url')
             }
 
-            # ✅ ОТПРАВЛЯЕМ В КОМНАТУ ПОЛУЧАТЕЛЯ
-            print(f"📤 Emitting new_message to room {receiver_id}")
-            emit('new_message', message_data, room=receiver_id)
+            print(f"📤 Emitting to conversation room: {conversation_id}")
+            emit('new_message', message_data, room=conversation_id)
 
-            # ✅ ПОДТВЕРЖДАЕМ ОТПРАВИТЕЛЮ
-            emit('message_sent', message_data, room=sender_id)
+            # Подтверждаем отправителю
+            emit('message_sent', message_data, room=request.sid)
 
             print(f"✅ Message sent, conversation_id={conversation_id}")
 
         except Exception as e:
-            print(f"❌ Error in send_message: {e}")
+            print(f"❌ Error: {e}")
             import traceback
             traceback.print_exc()
             emit('error', {'error': str(e)})

@@ -24,7 +24,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       });
 
       if (!response.ok) {
-        console.error(`Ошибка загрузки диалогов: ${response.status}`);
         return [];
       }
 
@@ -66,39 +65,11 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, [loadConversations]);
 
-  // ========== WEBSOCKET ==========
   useEffect(() => {
-  if (!currentUserId) return;
-  if (socketService.isConnected()) {
-    console.log('Socket already connected, skipping');
-    return;
-  }
-  
-  const token = api.getToken();
-  if (!token) return;
-  
-  console.log('🔌 Connecting socket for user:', currentUserId);
-  socketService.connect(currentUserId, token);
-  
-  const unsubscribe = socketService.onMessage((message) => {
-    console.log('📩 New message via socket:', message);
-    loadConversations();
-    if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
-      setMessages(prev => {
-        if (prev.some(m => m.id === message.id)) return prev;
-        return [...prev, message];
-      });
-      scrollToBottom();
-    }
-  });
-  
-  // НЕ ОТКЛЮЧАЙТЕ СВЯЗЬ ПРИ РАЗМОНТИРОВАНИИ КОМПОНЕНТА
-  // return () => {
-  //   unsubscribe();
-  //   socketService.disconnect();
-  // };
-}, [currentUserId]); // БЕЗ ЗАВИСИМОСТИ ОТ selectedConversation
+    loadConversations().finally(() => setLoading(false));
+  }, [loadConversations]);
 
+  // Инициализация диалога с другим пользователем
   useEffect(() => {
     if (!otherUserId) return;
 
@@ -138,9 +109,85 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     initConversation();
   }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages]);
 
-  // ========== ОТПРАВКА СООБЩЕНИЯ ==========
-  const restSendMessage = useCallback(async (token, content, tempId) => {
+  // ========== ✅ НОВЫЙ ОБРАБОТЧИК СООБЩЕНИЙ (ВСТАВЬТЕ ЭТОТ БЛОК) ==========
+  useEffect(() => {
+    // Проверяем, что сокет подключён
+    if (!socketService.isConnected()) {
+      console.log('⚠️ Socket not connected, skipping message listener');
+      return;
+    }
+    
+    console.log('📩 Setting up message listener');
+    
+    const handleNewMessage = (message) => {
+      console.log('📩 New message received:', message);
+      
+      // Обновляем список диалогов
+      loadConversations();
+      
+      // Если сообщение для текущего открытого диалога
+      if (selectedConversation && message.conversation_id === selectedConversation.id) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
+        scrollToBottom();
+      } else if (selectedConversation && message.sender_id === selectedConversation.other_user_id) {
+        // Запасной вариант — если conversation_id нет, проверяем по sender_id
+        setMessages(prev => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
+        scrollToBottom();
+      }
+    };
+    
+    // Подписываемся на событие new_message
+    socketService.socket.on('new_message', handleNewMessage);
+    
+    // Отписываемся при размонтировании
+    return () => {
+      console.log('🔌 Removing message listener');
+      socketService.socket.off('new_message', handleNewMessage);
+    };
+  }, [selectedConversation, loadConversations]);
+  // ========== КОНЕЦ БЛОКА ==========
+
+  // Вход в комнату диалога при выборе диалога
+  useEffect(() => {
+    if (!selectedConversation?.id) return;
+    
+    if (socketService.isConnected()) {
+      console.log(`🔗 Joining conversation room: ${selectedConversation.id}`);
+      socketService.socket.emit('join_conversation', {
+        conversation_id: selectedConversation.id
+      });
+    }
+  }, [selectedConversation]);
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || sending) return;
+
+    setSending(true);
+    const messageContent = newMessage.trim();
+    setNewMessage('');
+
+    const tempMessage = {
+      id: 'temp-' + Date.now(),
+      sender_id: currentUserId,
+      receiver_id: selectedConversation?.other_user_id,
+      content: messageContent,
+      created_at: new Date().toISOString(),
+      is_temp: true
+    };
+    setMessages(prev => [...prev, tempMessage]);
+    scrollToBottom();
+
     try {
+      const token = api.getToken();
+      
+      // Отправка через REST (работает)
       const response = await fetch(`${API_URL}/messages`, {
         method: 'POST',
         headers: {
@@ -149,73 +196,26 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
         },
         body: JSON.stringify({
           receiver_id: selectedConversation.other_user_id,
-          content: content
+          content: messageContent
         })
       });
 
       if (response.ok) {
         const result = await response.json();
         setMessages(prev => prev.map(msg =>
-          msg.id === tempId ? result : msg
+          msg.id === tempMessage.id ? result : msg
         ));
         loadConversations();
+      } else {
+        throw new Error('Failed to send');
       }
     } catch (err) {
-      console.error('REST send failed:', err);
+      console.error('Error sending message:', err);
+      setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
+    } finally {
+      setSending(false);
     }
-  }, [selectedConversation, loadConversations]);
-
-  const sendMessage = async (e) => {
-  e.preventDefault();
-  if (!newMessage.trim() || sending) return;
-
-  setSending(true);
-  const messageContent = newMessage.trim();
-  setNewMessage('');
-
-  const tempMessage = {
-    id: 'temp-' + Date.now(),
-    sender_id: currentUserId,
-    receiver_id: selectedConversation?.other_user_id,
-    content: messageContent,
-    created_at: new Date().toISOString(),
-    is_temp: true
   };
-  setMessages(prev => [...prev, tempMessage]);
-  scrollToBottom();
-
-  try {
-    const token = api.getToken();
-    
-    // ✅ ТОЛЬКО REST
-    const response = await fetch(`${API_URL}/messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        receiver_id: selectedConversation.other_user_id,
-        content: messageContent
-      })
-    });
-
-    if (response.ok) {
-      const result = await response.json();
-      setMessages(prev => prev.map(msg =>
-        msg.id === tempMessage.id ? result : msg
-      ));
-      loadConversations();
-    } else {
-      throw new Error('Failed to send');
-    }
-  } catch (err) {
-    console.error('Error sending message:', err);
-    setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
-  } finally {
-    setSending(false);
-  }
-};
 
   const scrollToBottom = () => {
     setTimeout(() => {
