@@ -6,7 +6,6 @@ import socketService from '../../services/socket';
 import './Messenger.css';
 
 const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar, onClose }) => {
-  // ========== ВСЕ ХУКИ В НАЧАЛЕ ==========
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -14,7 +13,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
-  const roomJoinedRef = useRef(false);
+  const isMounted = useRef(true);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -28,7 +27,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       if (!response.ok) return [];
 
       const data = await response.json();
-      if (Array.isArray(data)) {
+      if (Array.isArray(data) && isMounted.current) {
         setConversations(data);
         return data;
       }
@@ -51,8 +50,10 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       if (!response.ok) throw new Error('Failed to load messages');
 
       const data = await response.json();
-      setMessages(data || []);
-      scrollToBottom();
+      if (isMounted.current) {
+        setMessages(data || []);
+        scrollToBottom();
+      }
       
       await fetch(`${API_URL}/conversations/${conversationId}/read`, {
         method: 'POST',
@@ -64,17 +65,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       console.error('Error loading messages:', err);
     }
   }, [loadConversations]);
-
-  const joinConversationRoom = useCallback((conversationId) => {
-    if (!conversationId) return;
-    if (!socketService.isConnected()) return;
-    if (roomJoinedRef.current) return;
-    
-    const roomName = `conversation_${conversationId}`;
-    console.log(`🔗 Joining room: ${roomName}`);
-    socketService.socket?.emit('join_room', { room_id: roomName });
-    roomJoinedRef.current = true;
-  }, []);
 
   // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ ==========
   useEffect(() => {
@@ -89,15 +79,10 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     const unsubscribe = socketService.onMessage((message) => {
       console.log('📩 New message via WebSocket:', message);
       
-      // ✅ АВТОМАТИЧЕСКИЙ ВХОД В КОМНАТУ (если ещё не входили)
-      const roomName = `conversation_${message.conversation_id}`;
-      console.log(`🔗 Auto-joining room: ${roomName}`);
-      socketService.socket?.emit('join_room', { room_id: roomName });
-      
       // Обновляем список диалогов
       loadConversations();
       
-      // Если сообщение для текущего открытого диалога — добавляем в сообщения
+      // Проверяем, относится ли сообщение к текущему открытому диалогу
       if (selectedConversation && message.conversation_id === selectedConversation.id) {
         console.log('✅ Message for current conversation, adding to messages');
         setMessages(prev => {
@@ -106,14 +91,26 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
         });
         scrollToBottom();
       } else {
-        console.log(`📌 Message for other conversation: ${message.conversation_id}, current: ${selectedConversation?.id}`);
+        console.log(`📌 Message for conversation: ${message.conversation_id}`);
+        // Если диалог не открыт, но пришло сообщение — обновляем список диалогов
+        loadConversations();
       }
     });
     
     const handleAuthenticated = () => {
+      console.log('✅ Socket authenticated, joining rooms...');
+      // Входим во все существующие диалоги
+      if (conversations.length > 0) {
+        conversations.forEach(conv => {
+          const roomName = `conversation_${conv.id}`;
+          console.log(`🔗 Joining room: ${roomName}`);
+          socketService.socket?.emit('join_room', { room_id: roomName });
+        });
+      }
+      // Если есть выбранный диалог — входим в него
       if (selectedConversation?.id) {
         const roomName = `conversation_${selectedConversation.id}`;
-        console.log(`🔗 Joining room: ${roomName}`);
+        console.log(`🔗 Joining selected room: ${roomName}`);
         socketService.socket?.emit('join_room', { room_id: roomName });
       }
     };
@@ -124,46 +121,46 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       unsubscribe();
       socketService.offAuthenticated(handleAuthenticated);
     };
-  }, [currentUserId, selectedConversation, loadConversations]);
+  }, [currentUserId, selectedConversation, conversations, loadConversations]);
 
   // ========== ЗАГРУЗКА ДИАЛОГОВ И ВХОД В КОМНАТЫ ==========
- useEffect(() => {
-  const loadAndJoin = async () => {
-    const token = api.getToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      const response = await fetch(`${API_URL}/conversations`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+  useEffect(() => {
+    const loadAndJoin = async () => {
+      const token = api.getToken();
+      if (!token) {
+        if (isMounted.current) setLoading(false);
+        return;
+      }
       
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setConversations(data);
-          
-          // ✅ Входим в комнаты ВСЕХ диалогов (для получения сообщений)
-          if (socketService.isConnected() && data.length > 0) {
-            data.forEach(conv => {
-              const roomName = `conversation_${conv.id}`;
-              console.log(`🔗 Auto-joining room: ${roomName}`);
-              socketService.socket?.emit('join_room', { room_id: roomName });
-            });
+      try {
+        const response = await fetch(`${API_URL}/conversations`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && isMounted.current) {
+            setConversations(data);
+            
+            // Входим в комнаты всех диалогов
+            if (socketService.isConnected() && data.length > 0) {
+              data.forEach(conv => {
+                const roomName = `conversation_${conv.id}`;
+                console.log(`🔗 Auto-joining room: ${roomName}`);
+                socketService.socket?.emit('join_room', { room_id: roomName });
+              });
+            }
           }
         }
+      } catch (err) {
+        console.error('Error loading conversations:', err);
+      } finally {
+        if (isMounted.current) setLoading(false);
       }
-    } catch (err) {
-      console.error('Error loading conversations:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  loadAndJoin();
-}, []);
+    };
+    
+    loadAndJoin();
+  }, []); // Только при монтировании
 
   // ========== ИНИЦИАЛИЗАЦИЯ ДИАЛОГА С ДРУГИМ ПОЛЬЗОВАТЕЛЕМ ==========
   useEffect(() => {
@@ -176,7 +173,9 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       if (existing) {
         setSelectedConversation(existing);
         await loadMessages(existing.id);
-        joinConversationRoom(existing.id);
+        // Вход в комнату
+        const roomName = `conversation_${existing.id}`;
+        socketService.socket?.emit('join_room', { room_id: roomName });
       } else {
         const token = api.getToken();
         const response = await fetch(`${API_URL}/conversations/create`, {
@@ -199,17 +198,21 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
             unread_count: 0
           };
           setSelectedConversation(newConv);
+          // Вход в новую комнату
+          const roomName = `conversation_${data.id}`;
+          socketService.socket?.emit('join_room', { room_id: roomName });
         }
       }
     };
 
     initConversation();
-  }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages, joinConversationRoom]);
+  }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages]);
 
   // ========== ОТПРАВКА СООБЩЕНИЯ ==========
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
+    if (!selectedConversation) return;
 
     setSending(true);
     const messageContent = newMessage.trim();
@@ -225,6 +228,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
           content: messageContent
         });
       } else {
+        // REST fallback
         const tempMessage = {
           id: 'temp-' + Date.now(),
           sender_id: currentUserId,
@@ -277,7 +281,14 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  // ========== РЕНДЕР (ПОСЛЕ ВСЕХ ХУКОВ) ==========
+  // Очистка при размонтировании
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="messenger">
@@ -311,13 +322,10 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
                 className={`conversation-item ${selectedConversation?.id === conv.id ? 'active' : ''}`}
                 onClick={() => {
                   console.log(`🔄 Switching to conversation: ${conv.id}`);
-                  roomJoinedRef.current = false;
                   setSelectedConversation(conv);
                   loadMessages(conv.id);
-                  if (socketService.isConnected()) {
-                    const roomName = `conversation_${conv.id}`;
-                    socketService.socket?.emit('join_room', { room_id: roomName });
-                  }
+                  const roomName = `conversation_${conv.id}`;
+                  socketService.socket?.emit('join_room', { room_id: roomName });
                 }}
               >
                 <img
