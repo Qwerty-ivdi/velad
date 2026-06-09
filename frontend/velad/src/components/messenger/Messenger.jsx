@@ -14,6 +14,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
   const isMounted = useRef(true);
+  const socketConnectedRef = useRef(false);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -66,86 +67,77 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, [loadConversations]);
 
-  // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ ==========
-useEffect(() => {
-  if (!currentUserId) return;
-  
-  const token = api.getToken();
-  if (!token) return;
-  
-  // Подключаем сокет (метод сам проверит, нужно ли переподключаться)
-  socketService.connect(currentUserId, token);
-  
-  const unsubscribe = socketService.onMessage((message) => {
-    console.log('📩 New message via WebSocket:', message);
-    loadConversations();
-    
-    if (selectedConversation && message.conversation_id === selectedConversation.id) {
-      setMessages(prev => {
-        if (prev.some(m => m.id === message.id)) return prev;
-        return [...prev, message];
-      });
-      scrollToBottom();
-    }
-  });
-  
-  const handleAuthenticated = () => {
-    console.log('✅ Authenticated, joining rooms...');
-    // Входим в комнату выбранного диалога
-    if (selectedConversation?.id) {
-      const roomName = `conversation_${selectedConversation.id}`;
-      socketService.socket?.emit('join_room', { room_id: roomName });
-    }
-  };
-  
-  socketService.onAuthenticated(handleAuthenticated);
-  
-  return () => {
-    unsubscribe();
-    socketService.offAuthenticated(handleAuthenticated);
-    // НЕ отключаем сокет при размонтировании компонента!
-    // socketService.disconnect();
-  };
-}, [currentUserId, selectedConversation, loadConversations]);
-
-  // ========== ЗАГРУЗКА ДИАЛОГОВ И ВХОД В КОМНАТЫ ==========
+  // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ (ОДИН РАЗ) ==========
   useEffect(() => {
-    const loadAndJoin = async () => {
-      const token = api.getToken();
-      if (!token) {
-        if (isMounted.current) setLoading(false);
-        return;
+    if (!currentUserId || socketConnectedRef.current) return;
+    
+    const token = api.getToken();
+    if (!token) return;
+    
+    console.log('🔌 Connecting socket for user:', currentUserId);
+    socketService.connect(currentUserId, token);
+    socketConnectedRef.current = true;
+    
+    return () => {
+      // Не отключаем сокет при размонтировании мессенджера
+      // socketService.disconnect();
+    };
+  }, [currentUserId]);
+
+  // ========== ПОДПИСКА НА СООБЩЕНИЯ ==========
+  useEffect(() => {
+    const unsubscribe = socketService.onMessage((message) => {
+      console.log('📩 New message via WebSocket:', message);
+      
+      loadConversations();
+      
+      if (selectedConversation && message.conversation_id === selectedConversation.id) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
+        scrollToBottom();
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [selectedConversation, loadConversations]);
+
+  // ========== ВХОД В КОМНАТЫ ПОСЛЕ АУТЕНТИФИКАЦИИ ==========
+  useEffect(() => {
+    const handleAuthenticated = () => {
+      console.log('✅ Authenticated, joining rooms...');
+      
+      // Входим в комнату выбранного диалога
+      if (selectedConversation?.id) {
+        const roomName = `conversation_${selectedConversation.id}`;
+        socketService.socket?.emit('join_room', { room_id: roomName });
       }
       
-      try {
-        const response = await fetch(`${API_URL}/conversations`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data) && isMounted.current) {
-            setConversations(data);
-            
-            // Входим в комнаты всех диалогов
-            if (socketService.isConnected() && data.length > 0) {
-              data.forEach(conv => {
-                const roomName = `conversation_${conv.id}`;
-                console.log(`🔗 Auto-joining room: ${roomName}`);
-                socketService.socket?.emit('join_room', { room_id: roomName });
-              });
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Error loading conversations:', err);
-      } finally {
-        if (isMounted.current) setLoading(false);
-      }
+      // Входим во все существующие диалоги
+      conversations.forEach(conv => {
+        const roomName = `conversation_${conv.id}`;
+        socketService.socket?.emit('join_room', { room_id: roomName });
+      });
     };
     
-    loadAndJoin();
-  }, []); // Только при монтировании
+    socketService.onAuthenticated(handleAuthenticated);
+    
+    return () => {
+      socketService.offAuthenticated(handleAuthenticated);
+    };
+  }, [selectedConversation, conversations]);
+
+  // ========== ЗАГРУЗКА ДИАЛОГОВ ПРИ МОНТИРОВАНИИ ==========
+  useEffect(() => {
+    isMounted.current = true;
+    loadConversations().finally(() => {
+      if (isMounted.current) setLoading(false);
+    });
+    return () => {
+      isMounted.current = false;
+    };
+  }, [loadConversations]);
 
   // ========== ИНИЦИАЛИЗАЦИЯ ДИАЛОГА С ДРУГИМ ПОЛЬЗОВАТЕЛЕМ ==========
   useEffect(() => {
@@ -197,7 +189,6 @@ useEffect(() => {
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
-    if (!selectedConversation) return;
 
     setSending(true);
     const messageContent = newMessage.trim();
@@ -243,8 +234,6 @@ useEffect(() => {
             msg.id === tempMessage.id ? result : msg
           ));
           loadConversations();
-        } else {
-          throw new Error('Failed to send');
         }
       }
     } catch (err) {
@@ -265,14 +254,6 @@ useEffect(() => {
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
-
-  // Очистка при размонтировании
-  useEffect(() => {
-    isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
 
   if (loading) {
     return (
@@ -306,7 +287,6 @@ useEffect(() => {
                 key={conv.id}
                 className={`conversation-item ${selectedConversation?.id === conv.id ? 'active' : ''}`}
                 onClick={() => {
-                  console.log(`🔄 Switching to conversation: ${conv.id}`);
                   setSelectedConversation(conv);
                   loadMessages(conv.id);
                   const roomName = `conversation_${conv.id}`;

@@ -107,12 +107,6 @@ const TwitchStreamCard = ({ stream, compact = false }) => {
         <button className="stream-action-btn" onClick={handleWatch}>
           <FaTwitch /> Смотреть
         </button>
-        <button className="stream-action-btn">
-          <FaHeart /> <span>Подписаться</span>
-        </button>
-        <button className="stream-action-btn">
-          <FaShare /> <span>Поделиться</span>
-        </button>
       </div>
     </div>
   );
