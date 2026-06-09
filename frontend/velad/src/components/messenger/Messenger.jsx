@@ -75,54 +75,52 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     roomJoinedRef.current = true;
   }, []);
 
-  useEffect(() => {
-    if (!currentUserId) return;
-    
-    const token = api.getToken();
-    if (!token) return;
-    
-    console.log('🔌 Connecting socket for user:', currentUserId);
-    socketService.connect(currentUserId, token);
-    
-    const unsubscribe = socketService.onMessage((message) => {
-  console.log('📩 New message via WebSocket:', message);
+  // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ ==========
+useEffect(() => {
+  if (!currentUserId) return;
   
-  // Если диалог ещё не открыт, но пришло сообщение — входим в комнату
-  if (!selectedConversation || message.conversation_id !== selectedConversation.id) {
-    console.log(`🔗 Auto-joining room for conversation: ${message.conversation_id}`);
-    socketService.socket?.emit('join_room', {
-      room_id: `conversation_${message.conversation_id}`
-    });
-  }
+  const token = api.getToken();
+  if (!token) return;
   
-  // Обновляем список диалогов
-  loadConversations();
+  console.log('🔌 Connecting socket for user:', currentUserId);
+  socketService.connect(currentUserId, token);
   
-  // Если сообщение для текущего открытого диалога
-  if (selectedConversation && message.conversation_id === selectedConversation.id) {
-    setMessages(prev => {
-      if (prev.some(m => m.id === message.id)) return prev;
-      return [...prev, message];
-    });
-    scrollToBottom();
-  }
-    });
+  // Подписываемся на новые сообщения
+  const unsubscribe = socketService.onMessage((message) => {
+    console.log('📩 New message via WebSocket:', message);
     
-    const handleAuthenticated = () => {
-      if (selectedConversation?.id) {
-        joinConversationRoom(selectedConversation.id);
-      }
-    };
+    // Обновляем список диалогов
+    loadConversations();
     
-    socketService.onAuthenticated(handleAuthenticated);
-    
-    return () => {
-      unsubscribe();
-      socketService.offAuthenticated(handleAuthenticated);
-      roomJoinedRef.current = false;
-      console.log('🔌 WebSocket cleanup');
-    };
-  }, [currentUserId, selectedConversation, loadConversations, joinConversationRoom]);
+    // ✅ Проверяем, относится ли сообщение к ТЕКУЩЕМУ открытому диалогу
+    if (selectedConversation && message.conversation_id === selectedConversation.id) {
+      console.log('✅ Message for current conversation, adding to messages');
+      setMessages(prev => {
+        if (prev.some(m => m.id === message.id)) return prev;
+        return [...prev, message];
+      });
+      scrollToBottom();
+    } else {
+      console.log(`📌 Message for other conversation: ${message.conversation_id}, current: ${selectedConversation?.id}`);
+    }
+  });
+  
+  // Вход в комнату после аутентификации
+  const handleAuthenticated = () => {
+    if (selectedConversation?.id) {
+      const roomName = `conversation_${selectedConversation.id}`;
+      console.log(`🔗 Joining room: ${roomName}`);
+      socketService.socket?.emit('join_room', { room_id: roomName });
+    }
+  };
+  
+  socketService.onAuthenticated(handleAuthenticated);
+  
+  return () => {
+    unsubscribe();
+    socketService.offAuthenticated(handleAuthenticated);
+  };
+}, [currentUserId, selectedConversation, loadConversations]);
 
 useEffect(() => {
   const loadAndJoin = async () => {
@@ -304,10 +302,14 @@ useEffect(() => {
                 key={conv.id}
                 className={`conversation-item ${selectedConversation?.id === conv.id ? 'active' : ''}`}
                 onClick={() => {
-                  roomJoinedRef.current = false;
+                  console.log(`🔄 Switching to conversation: ${conv.id}`);
                   setSelectedConversation(conv);
                   loadMessages(conv.id);
-                  joinConversationRoom(conv.id);
+                  // Вход в новую комнату
+                  if (socketService.isConnected()) {
+                    const roomName = `conversation_${conv.id}`;
+                    socketService.socket?.emit('join_room', { room_id: roomName });
+                  }
                 }}
               >
                 <img
