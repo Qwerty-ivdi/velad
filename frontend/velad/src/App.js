@@ -45,9 +45,36 @@ function App() {
     setShowMessenger(false);
   };
 
+  const handleLogout = () => {
+    api.removeToken();
+    api.removeUser();
+    socketService.disconnect();
+    setUser(null);
+    navigate('/login');
+  };
+
   if (loading) {
     return <div className="loading-screen">Загрузка...</div>;
   }
+
+  useEffect(() => {
+    const token = api.getToken();
+    const storedUser = api.getUser();
+    
+    if (token && storedUser) {
+      // Проверяем, что токен всё ещё валиден
+      api.getProfile(token).then(profile => {
+        setUser(profile);
+        api.setUser(profile);
+      }).catch(() => {
+        // Токен невалиден — очищаем
+        api.removeToken();
+        api.removeUser();
+        setUser(null);
+      });
+    }
+    setLoading(false);
+  }, []);
 
   return (
     <BrowserRouter>

@@ -10,6 +10,12 @@ class SocketService {
   }
 
   connect(userId, token) {
+  // Если уже есть сокет с другим пользователем — переподключаемся
+  if (this.socket && this.currentUserId !== userId) {
+    console.log(`🔄 User changed from ${this.currentUserId} to ${userId}, reconnecting...`);
+    this.disconnect();
+  }
+
     if (this.socket?.connected) {
       return this.socket;
     }
