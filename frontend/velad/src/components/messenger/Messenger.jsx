@@ -124,9 +124,43 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     };
   }, [currentUserId, selectedConversation, loadConversations, joinConversationRoom]);
 
-  useEffect(() => {
-    loadConversations().finally(() => setLoading(false));
-  }, [loadConversations]);
+useEffect(() => {
+  const loadAndJoin = async () => {
+    const token = api.getToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_URL}/conversations`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setConversations(data);
+          
+          // Входим в комнаты всех диалогов (для получения сообщений)
+          if (socketService.isConnected() && data.length > 0) {
+            data.forEach(conv => {
+              const roomName = `conversation_${conv.id}`;
+              console.log(`🔗 Auto-joining room: ${roomName}`);
+              socketService.socket?.emit('join_room', { room_id: roomName });
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error loading conversations:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  loadAndJoin();
+}, []);
 
   useEffect(() => {
     if (!otherUserId) return;
