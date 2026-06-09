@@ -77,11 +77,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     console.log('🔌 Connecting socket for user:', currentUserId);
     socketService.connect(currentUserId, token);
     socketConnectedRef.current = true;
-    
-    return () => {
-      // Не отключаем сокет при размонтировании мессенджера
-      // socketService.disconnect();
-    };
   }, [currentUserId]);
 
   // ========== ПОДПИСКА НА СООБЩЕНИЯ ==========
@@ -117,6 +112,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       // Входим во все существующие диалоги
       conversations.forEach(conv => {
         const roomName = `conversation_${conv.id}`;
+        console.log(`🔗 Joining room: ${roomName}`);
         socketService.socket?.emit('join_room', { room_id: roomName });
       });
     };
@@ -131,13 +127,47 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   // ========== ЗАГРУЗКА ДИАЛОГОВ ПРИ МОНТИРОВАНИИ ==========
   useEffect(() => {
     isMounted.current = true;
-    loadConversations().finally(() => {
-      if (isMounted.current) setLoading(false);
-    });
+    
+    const loadAndJoin = async () => {
+      const token = api.getToken();
+      if (!token) {
+        if (isMounted.current) setLoading(false);
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_URL}/conversations`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data) && isMounted.current) {
+            setConversations(data);
+            
+            // Вход в комнаты всех диалогов
+            if (socketService.isConnected() && data.length > 0) {
+              data.forEach(conv => {
+                const roomName = `conversation_${conv.id}`;
+                console.log(`🔗 Joining room: ${roomName}`);
+                socketService.socket?.emit('join_room', { room_id: roomName });
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error loading conversations:', err);
+      } finally {
+        if (isMounted.current) setLoading(false);
+      }
+    };
+    
+    loadAndJoin();
+    
     return () => {
       isMounted.current = false;
     };
-  }, [loadConversations]);
+  }, []);
 
   // ========== ИНИЦИАЛИЗАЦИЯ ДИАЛОГА С ДРУГИМ ПОЛЬЗОВАТЕЛЕМ ==========
   useEffect(() => {
@@ -150,7 +180,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
       if (existing) {
         setSelectedConversation(existing);
         await loadMessages(existing.id);
-        // Вход в комнату
         const roomName = `conversation_${existing.id}`;
         socketService.socket?.emit('join_room', { room_id: roomName });
       } else {
@@ -175,7 +204,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
             unread_count: 0
           };
           setSelectedConversation(newConv);
-          // Вход в новую комнату
           const roomName = `conversation_${data.id}`;
           socketService.socket?.emit('join_room', { room_id: roomName });
         }
@@ -204,7 +232,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
           content: messageContent
         });
       } else {
-        // REST fallback
         const tempMessage = {
           id: 'temp-' + Date.now(),
           sender_id: currentUserId,
