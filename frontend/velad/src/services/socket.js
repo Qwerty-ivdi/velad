@@ -5,37 +5,44 @@ class SocketService {
   constructor() {
     this.socket = null;
     this.connected = false;
+    this.currentUserId = null; // ← добавили
     this.messageHandler = null;
     this.authHandlers = [];
   }
 
   connect(userId, token) {
-  // Если уже есть сокет с другим пользователем — переподключаемся
-  if (this.socket && this.currentUserId !== userId) {
-    console.log(`🔄 User changed from ${this.currentUserId} to ${userId}, reconnecting...`);
-    this.disconnect();
-  }
-
-    if (this.socket?.connected) {
+    // Если уже подключены с этим же пользователем — ничего не делаем
+    if (this.socket?.connected && this.currentUserId === userId) {
+      console.log('✅ Socket already connected for user:', userId);
       return this.socket;
     }
 
-    if (this.socket) {
+    // Если подключены с другим пользователем — переподключаемся
+    if (this.socket && this.currentUserId !== userId) {
+      console.log(`🔄 User changed from ${this.currentUserId} to ${userId}, reconnecting...`);
       this.disconnect();
     }
 
+    // Если сокет существует но отключён — пересоздаём
+    if (this.socket && !this.socket.connected) {
+      this.disconnect();
+    }
+
+    this.currentUserId = userId;
+
     const isProduction = window.location.hostname !== 'localhost';
     const socketUrl = isProduction 
-      ? 'https://velad-production-c7d5.up.railway.app' 
+      ? 'https://velad-production.up.railway.app' 
       : 'http://localhost:5000';
     
     console.log(`🔌 Creating socket for user ${userId}`);
     
     this.socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
-      path: '/socket.io',
-      secure: true,
-      rejectUnauthorized: false
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000
     });
 
     this.socket.on('connect', () => {
@@ -81,7 +88,7 @@ class SocketService {
   onAuthenticated(handler) {
     this.authHandlers.push(handler);
     return () => {
-      this.offAuthenticated(handler);
+      this.authHandlers = this.authHandlers.filter(h => h !== handler);
     };
   }
 
@@ -94,6 +101,7 @@ class SocketService {
       this.socket.disconnect();
       this.socket = null;
       this.connected = false;
+      this.currentUserId = null;
       this.messageHandler = null;
       this.authHandlers = [];
     }

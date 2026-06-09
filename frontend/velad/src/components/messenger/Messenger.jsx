@@ -67,61 +67,46 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   }, [loadConversations]);
 
   // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ ==========
-  useEffect(() => {
-    if (!currentUserId) return;
+useEffect(() => {
+  if (!currentUserId) return;
+  
+  const token = api.getToken();
+  if (!token) return;
+  
+  // Подключаем сокет (метод сам проверит, нужно ли переподключаться)
+  socketService.connect(currentUserId, token);
+  
+  const unsubscribe = socketService.onMessage((message) => {
+    console.log('📩 New message via WebSocket:', message);
+    loadConversations();
     
-    const token = api.getToken();
-    if (!token) return;
-    
-    console.log('🔌 Connecting socket for user:', currentUserId);
-    socketService.connect(currentUserId, token);
-    
-    const unsubscribe = socketService.onMessage((message) => {
-      console.log('📩 New message via WebSocket:', message);
-      
-      // Обновляем список диалогов
-      loadConversations();
-      
-      // Проверяем, относится ли сообщение к текущему открытому диалогу
-      if (selectedConversation && message.conversation_id === selectedConversation.id) {
-        console.log('✅ Message for current conversation, adding to messages');
-        setMessages(prev => {
-          if (prev.some(m => m.id === message.id)) return prev;
-          return [...prev, message];
-        });
-        scrollToBottom();
-      } else {
-        console.log(`📌 Message for conversation: ${message.conversation_id}`);
-        // Если диалог не открыт, но пришло сообщение — обновляем список диалогов
-        loadConversations();
-      }
-    });
-    
-    const handleAuthenticated = () => {
-      console.log('✅ Socket authenticated, joining rooms...');
-      // Входим во все существующие диалоги
-      if (conversations.length > 0) {
-        conversations.forEach(conv => {
-          const roomName = `conversation_${conv.id}`;
-          console.log(`🔗 Joining room: ${roomName}`);
-          socketService.socket?.emit('join_room', { room_id: roomName });
-        });
-      }
-      // Если есть выбранный диалог — входим в него
-      if (selectedConversation?.id) {
-        const roomName = `conversation_${selectedConversation.id}`;
-        console.log(`🔗 Joining selected room: ${roomName}`);
-        socketService.socket?.emit('join_room', { room_id: roomName });
-      }
-    };
-    
-    socketService.onAuthenticated(handleAuthenticated);
-    
-    return () => {
-      unsubscribe();
-      socketService.offAuthenticated(handleAuthenticated);
-    };
-  }, [currentUserId, selectedConversation, conversations, loadConversations]);
+    if (selectedConversation && message.conversation_id === selectedConversation.id) {
+      setMessages(prev => {
+        if (prev.some(m => m.id === message.id)) return prev;
+        return [...prev, message];
+      });
+      scrollToBottom();
+    }
+  });
+  
+  const handleAuthenticated = () => {
+    console.log('✅ Authenticated, joining rooms...');
+    // Входим в комнату выбранного диалога
+    if (selectedConversation?.id) {
+      const roomName = `conversation_${selectedConversation.id}`;
+      socketService.socket?.emit('join_room', { room_id: roomName });
+    }
+  };
+  
+  socketService.onAuthenticated(handleAuthenticated);
+  
+  return () => {
+    unsubscribe();
+    socketService.offAuthenticated(handleAuthenticated);
+    // НЕ отключаем сокет при размонтировании компонента!
+    // socketService.disconnect();
+  };
+}, [currentUserId, selectedConversation, loadConversations]);
 
   // ========== ЗАГРУЗКА ДИАЛОГОВ И ВХОД В КОМНАТЫ ==========
   useEffect(() => {
