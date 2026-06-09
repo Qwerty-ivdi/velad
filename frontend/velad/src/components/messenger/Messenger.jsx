@@ -88,8 +88,16 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     
     const unsubscribe = socketService.onMessage((message) => {
       console.log('📩 New message via WebSocket:', message);
+      
+      // ✅ АВТОМАТИЧЕСКИЙ ВХОД В КОМНАТУ (если ещё не входили)
+      const roomName = `conversation_${message.conversation_id}`;
+      console.log(`🔗 Auto-joining room: ${roomName}`);
+      socketService.socket?.emit('join_room', { room_id: roomName });
+      
+      // Обновляем список диалогов
       loadConversations();
       
+      // Если сообщение для текущего открытого диалога — добавляем в сообщения
       if (selectedConversation && message.conversation_id === selectedConversation.id) {
         console.log('✅ Message for current conversation, adding to messages');
         setMessages(prev => {
@@ -119,42 +127,43 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   }, [currentUserId, selectedConversation, loadConversations]);
 
   // ========== ЗАГРУЗКА ДИАЛОГОВ И ВХОД В КОМНАТЫ ==========
-  useEffect(() => {
-    const loadAndJoin = async () => {
-      const token = api.getToken();
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+ useEffect(() => {
+  const loadAndJoin = async () => {
+    const token = api.getToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_URL}/conversations`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       
-      try {
-        const response = await fetch(`${API_URL}/conversations`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (Array.isArray(data)) {
-            setConversations(data);
-            
-            if (socketService.isConnected() && data.length > 0) {
-              data.forEach(conv => {
-                const roomName = `conversation_${conv.id}`;
-                console.log(`🔗 Auto-joining room: ${roomName}`);
-                socketService.socket?.emit('join_room', { room_id: roomName });
-              });
-            }
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setConversations(data);
+          
+          // ✅ Входим в комнаты ВСЕХ диалогов (для получения сообщений)
+          if (socketService.isConnected() && data.length > 0) {
+            data.forEach(conv => {
+              const roomName = `conversation_${conv.id}`;
+              console.log(`🔗 Auto-joining room: ${roomName}`);
+              socketService.socket?.emit('join_room', { room_id: roomName });
+            });
           }
         }
-      } catch (err) {
-        console.error('Error loading conversations:', err);
-      } finally {
-        setLoading(false);
       }
-    };
-    
-    loadAndJoin();
-  }, []); // Пустой массив — выполняется один раз
+    } catch (err) {
+      console.error('Error loading conversations:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  loadAndJoin();
+}, []);
 
   // ========== ИНИЦИАЛИЗАЦИЯ ДИАЛОГА С ДРУГИМ ПОЛЬЗОВАТЕЛЕМ ==========
   useEffect(() => {
