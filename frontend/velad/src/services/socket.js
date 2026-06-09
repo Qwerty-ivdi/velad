@@ -35,7 +35,7 @@ class SocketService {
 
     const isProduction = window.location.hostname !== 'localhost';
     const socketUrl = isProduction 
-      ? 'https://velad-production-c7d5.up.railway.app32452' 
+      ? 'https://velad-production-c7d5.up.railway.app' 
       : 'http://localhost:5000';
     
     console.log(`🔌 Creating socket for user ${userId}`);
