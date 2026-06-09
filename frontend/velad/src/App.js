@@ -34,7 +34,9 @@ function App() {
   const handleLogout = () => {
     api.removeToken();
     api.removeUser();
+    socketService.disconnect();
     setUser(null);
+    navigate('/login');
   };
 
   const openMessenger = () => {
@@ -45,13 +47,7 @@ function App() {
     setShowMessenger(false);
   };
 
-  const handleLogout = () => {
-    api.removeToken();
-    api.removeUser();
-    socketService.disconnect();
-    setUser(null);
-    navigate('/login');
-  };
+  
 
   if (loading) {
     return <div className="loading-screen">Загрузка...</div>;
