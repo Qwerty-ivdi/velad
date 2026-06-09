@@ -98,31 +98,30 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     return () => unsubscribe();
   }, [selectedConversation, loadConversations]);
 
-  // ========== ВХОД В КОМНАТЫ ПОСЛЕ АУТЕНТИФИКАЦИИ ==========
-  useEffect(() => {
-    const handleAuthenticated = () => {
-      console.log('✅ Authenticated, joining rooms...');
-      
-      // Входим в комнату выбранного диалога
-      if (selectedConversation?.id) {
-        const roomName = `conversation_${selectedConversation.id}`;
-        socketService.socket?.emit('join_room', { room_id: roomName });
-      }
-      
-      // Входим во все существующие диалоги
-      conversations.forEach(conv => {
+  // ========== ВХОД ВО ВСЕ КОМНАТЫ ПОСЛЕ АУТЕНТИФИКАЦИИ ==========
+useEffect(() => {
+  const handleAuthenticated = () => {
+    console.log('✅ Authenticated, joining ALL rooms...');
+    
+    // Загружаем диалоги и входим в каждую комнату
+    const joinAllRooms = async () => {
+      const convs = await loadConversations();
+      convs.forEach(conv => {
         const roomName = `conversation_${conv.id}`;
         console.log(`🔗 Joining room: ${roomName}`);
         socketService.socket?.emit('join_room', { room_id: roomName });
       });
     };
     
-    socketService.onAuthenticated(handleAuthenticated);
-    
-    return () => {
-      socketService.offAuthenticated(handleAuthenticated);
-    };
-  }, [selectedConversation, conversations]);
+    joinAllRooms();
+  };
+  
+  socketService.onAuthenticated(handleAuthenticated);
+  
+  return () => {
+    socketService.offAuthenticated(handleAuthenticated);
+  };
+}, [loadConversations]);
 
   // ========== ЗАГРУЗКА ДИАЛОГОВ ПРИ МОНТИРОВАНИИ ==========
   useEffect(() => {
