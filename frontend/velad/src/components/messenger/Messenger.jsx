@@ -159,98 +159,93 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages, joinConversationRoom]);
 
   const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() || sending) return;
+  e.preventDefault();
+  if (!newMessage.trim() || sending) return;
 
-    setSending(true);
-    const messageContent = newMessage.trim();
-    setNewMessage('');
+  setSending(true);
+  const messageContent = newMessage.trim();
+  setNewMessage('');
 
-    const tempMessage = {
-      id: 'temp-' + Date.now(),
-      sender_id: currentUserId,
-      receiver_id: selectedConversation?.other_user_id,
-      conversation_id: selectedConversation?.id,
-      content: messageContent,
-      created_at: new Date().toISOString(),
-      is_temp: true
-    };
-    setMessages(prev => [...prev, tempMessage]);
-    scrollToBottom();
+  const tempMessage = {
+    id: 'temp-' + Date.now(),
+    sender_id: currentUserId,
+    receiver_id: selectedConversation?.other_user_id,
+    conversation_id: selectedConversation?.id,
+    content: messageContent,
+    created_at: new Date().toISOString(),
+    is_temp: true
+  };
+  setMessages(prev => [...prev, tempMessage]);
+  scrollToBottom();
 
-    try {
-      const token = api.getToken();
+  try {
+    const token = api.getToken();
+    
+    if (socketService.isConnected()) {
+      // Только WebSocket, без REST fallback
+      console.log('📤 Sending via WebSocket');
+      socketService.socket?.emit('send_message', {
+        receiver_id: selectedConversation.other_user_id,
+        content: messageContent
+      });
       
-      if (socketService.isConnected()) {
-        console.log('📤 Sending via WebSocket');
-        socketService.socket?.emit('send_message', {
+      // Ждём подтверждение от сервера
+      const handleMessageSent = (message) => {
+        if (message.content === messageContent && message.sender_id === currentUserId) {
+          console.log('✅ Message confirmed by server');
+          setMessages(prev => prev.map(msg =>
+            msg.id === tempMessage.id ? { ...message, is_temp: false } : msg
+          ));
+          socketService.socket?.off('message_sent', handleMessageSent);
+        }
+      };
+      
+      socketService.socket?.on('message_sent', handleMessageSent);
+      
+      // Если через 5 секунд нет подтверждения — убираем временное сообщение
+      setTimeout(() => {
+        setMessages(prev => {
+          const msg = prev.find(m => m.id === tempMessage.id);
+          if (msg && msg.is_temp) {
+            console.log('⚠️ No server confirmation, removing temp message');
+            return prev.filter(m => m.id !== tempMessage.id);
+          }
+          return prev;
+        });
+      }, 5000);
+      
+    } else {
+      // REST fallback (только если WebSocket не подключён)
+      console.log('⚠️ WebSocket not connected, using REST');
+      const response = await fetch(`${API_URL}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
           receiver_id: selectedConversation.other_user_id,
           content: messageContent
-        });
-        
-        setTimeout(() => {
-          setMessages(prev => {
-            const msg = prev.find(m => m.id === tempMessage.id);
-            if (msg && msg.is_temp) {
-              console.log('⚠️ WebSocket timeout, using REST fallback');
-              fetch(`${API_URL}/messages`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  receiver_id: selectedConversation.other_user_id,
-                  content: messageContent
-                })
-              })
-              .then(response => response.ok ? response.json() : null)
-              .then(result => {
-                if (result) {
-                  setMessages(prev => prev.map(m =>
-                    m.id === tempMessage.id ? result : m
-                  ));
-                  loadConversations();
-                }
-              })
-              .catch(err => console.error('REST fallback failed:', err));
-            }
-            return prev;
-          });
-        }, 2000);
-        
-        setTimeout(() => setSending(false), 2000);
-      } else {
-        console.log('⚠️ WebSocket not connected, using REST');
-        const response = await fetch(`${API_URL}/messages`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            receiver_id: selectedConversation.other_user_id,
-            content: messageContent
-          })
-        });
+        })
+      });
 
-        if (response.ok) {
-          const result = await response.json();
-          setMessages(prev => prev.map(msg =>
-            msg.id === tempMessage.id ? result : msg
-          ));
-          loadConversations();
-        } else {
-          throw new Error('Failed to send');
-        }
-        setSending(false);
+      if (response.ok) {
+        const result = await response.json();
+        setMessages(prev => prev.map(msg =>
+          msg.id === tempMessage.id ? result : msg
+        ));
+        loadConversations();
+      } else {
+        throw new Error('Failed to send');
       }
-    } catch (err) {
-      console.error('Error sending message:', err);
-      setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
-      setSending(false);
     }
-  };
+  } catch (err) {
+    console.error('Error sending message:', err);
+    setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
+  } finally {
+    setSending(false);
+  }
+};
 
   const scrollToBottom = () => {
     setTimeout(() => {
