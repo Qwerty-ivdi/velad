@@ -85,17 +85,27 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     socketService.connect(currentUserId, token);
     
     const unsubscribe = socketService.onMessage((message) => {
-      console.log('📩 New message via WebSocket:', message);
-      
-      loadConversations();
-      
-      if (selectedConversation && message.conversation_id === selectedConversation.id) {
-        setMessages(prev => {
-          if (prev.some(m => m.id === message.id)) return prev;
-          return [...prev, message];
-        });
-        scrollToBottom();
-      }
+  console.log('📩 New message via WebSocket:', message);
+  
+  // Если диалог ещё не открыт, но пришло сообщение — входим в комнату
+  if (!selectedConversation || message.conversation_id !== selectedConversation.id) {
+    console.log(`🔗 Auto-joining room for conversation: ${message.conversation_id}`);
+    socketService.socket?.emit('join_room', {
+      room_id: `conversation_${message.conversation_id}`
+    });
+  }
+  
+  // Обновляем список диалогов
+  loadConversations();
+  
+  // Если сообщение для текущего открытого диалога
+  if (selectedConversation && message.conversation_id === selectedConversation.id) {
+    setMessages(prev => {
+      if (prev.some(m => m.id === message.id)) return prev;
+      return [...prev, message];
+    });
+    scrollToBottom();
+  }
     });
     
     const handleAuthenticated = () => {
@@ -166,57 +176,27 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   const messageContent = newMessage.trim();
   setNewMessage('');
 
-  const tempMessage = {
-    id: 'temp-' + Date.now(),
-    sender_id: currentUserId,
-    receiver_id: selectedConversation?.other_user_id,
-    conversation_id: selectedConversation?.id,
-    content: messageContent,
-    created_at: new Date().toISOString(),
-    is_temp: true
-  };
-  setMessages(prev => [...prev, tempMessage]);
-  scrollToBottom();
-
   try {
     const token = api.getToken();
     
     if (socketService.isConnected()) {
-      // Только WebSocket, без REST fallback
       console.log('📤 Sending via WebSocket');
       socketService.socket?.emit('send_message', {
         receiver_id: selectedConversation.other_user_id,
         content: messageContent
       });
-      
-      // Ждём подтверждение от сервера
-      const handleMessageSent = (message) => {
-        if (message.content === messageContent && message.sender_id === currentUserId) {
-          console.log('✅ Message confirmed by server');
-          setMessages(prev => prev.map(msg =>
-            msg.id === tempMessage.id ? { ...message, is_temp: false } : msg
-          ));
-          socketService.socket?.off('message_sent', handleMessageSent);
-        }
-      };
-      
-      socketService.socket?.on('message_sent', handleMessageSent);
-      
-      // Если через 5 секунд нет подтверждения — убираем временное сообщение
-      setTimeout(() => {
-        setMessages(prev => {
-          const msg = prev.find(m => m.id === tempMessage.id);
-          if (msg && msg.is_temp) {
-            console.log('⚠️ No server confirmation, removing temp message');
-            return prev.filter(m => m.id !== tempMessage.id);
-          }
-          return prev;
-        });
-      }, 5000);
-      
     } else {
-      // REST fallback (только если WebSocket не подключён)
-      console.log('⚠️ WebSocket not connected, using REST');
+      const tempMessage = {
+        id: 'temp-' + Date.now(),
+        sender_id: currentUserId,
+        receiver_id: selectedConversation?.other_user_id,
+        content: messageContent,
+        created_at: new Date().toISOString(),
+        is_temp: true
+      };
+      setMessages(prev => [...prev, tempMessage]);
+      scrollToBottom();
+      
       const response = await fetch(`${API_URL}/messages`, {
         method: 'POST',
         headers: {
@@ -241,7 +221,6 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   } catch (err) {
     console.error('Error sending message:', err);
-    setMessages(prev => prev.filter(msg => msg.id !== tempMessage.id));
   } finally {
     setSending(false);
   }
