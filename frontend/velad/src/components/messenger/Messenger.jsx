@@ -6,6 +6,7 @@ import socketService from '../../services/socket';
 import './Messenger.css';
 
 const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar, onClose }) => {
+  // ========== ВСЕ ХУКИ В НАЧАЛЕ ==========
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -76,90 +77,86 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
   }, []);
 
   // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ ==========
-useEffect(() => {
-  if (!currentUserId) return;
-  
-  const token = api.getToken();
-  if (!token) return;
-  
-  console.log('🔌 Connecting socket for user:', currentUserId);
-  socketService.connect(currentUserId, token);
-  
-  // Подписываемся на новые сообщения
-  const unsubscribe = socketService.onMessage((message) => {
-    console.log('📩 New message via WebSocket:', message);
+  useEffect(() => {
+    if (!currentUserId) return;
     
-    // Обновляем список диалогов
-    loadConversations();
-    
-    // ✅ Проверяем, относится ли сообщение к ТЕКУЩЕМУ открытому диалогу
-    if (selectedConversation && message.conversation_id === selectedConversation.id) {
-      console.log('✅ Message for current conversation, adding to messages');
-      setMessages(prev => {
-        if (prev.some(m => m.id === message.id)) return prev;
-        return [...prev, message];
-      });
-      scrollToBottom();
-    } else {
-      console.log(`📌 Message for other conversation: ${message.conversation_id}, current: ${selectedConversation?.id}`);
-    }
-  });
-  
-  // Вход в комнату после аутентификации
-  const handleAuthenticated = () => {
-    if (selectedConversation?.id) {
-      const roomName = `conversation_${selectedConversation.id}`;
-      console.log(`🔗 Joining room: ${roomName}`);
-      socketService.socket?.emit('join_room', { room_id: roomName });
-    }
-  };
-  
-  socketService.onAuthenticated(handleAuthenticated);
-  
-  return () => {
-    unsubscribe();
-    socketService.offAuthenticated(handleAuthenticated);
-  };
-}, [currentUserId, selectedConversation, loadConversations]);
-
-useEffect(() => {
-  const loadAndJoin = async () => {
     const token = api.getToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    if (!token) return;
     
-    try {
-      const response = await fetch(`${API_URL}/conversations`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+    console.log('🔌 Connecting socket for user:', currentUserId);
+    socketService.connect(currentUserId, token);
+    
+    const unsubscribe = socketService.onMessage((message) => {
+      console.log('📩 New message via WebSocket:', message);
+      loadConversations();
       
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setConversations(data);
-          
-          // Входим в комнаты всех диалогов (для получения сообщений)
-          if (socketService.isConnected() && data.length > 0) {
-            data.forEach(conv => {
-              const roomName = `conversation_${conv.id}`;
-              console.log(`🔗 Auto-joining room: ${roomName}`);
-              socketService.socket?.emit('join_room', { room_id: roomName });
-            });
+      if (selectedConversation && message.conversation_id === selectedConversation.id) {
+        console.log('✅ Message for current conversation, adding to messages');
+        setMessages(prev => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
+        scrollToBottom();
+      } else {
+        console.log(`📌 Message for other conversation: ${message.conversation_id}, current: ${selectedConversation?.id}`);
+      }
+    });
+    
+    const handleAuthenticated = () => {
+      if (selectedConversation?.id) {
+        const roomName = `conversation_${selectedConversation.id}`;
+        console.log(`🔗 Joining room: ${roomName}`);
+        socketService.socket?.emit('join_room', { room_id: roomName });
+      }
+    };
+    
+    socketService.onAuthenticated(handleAuthenticated);
+    
+    return () => {
+      unsubscribe();
+      socketService.offAuthenticated(handleAuthenticated);
+    };
+  }, [currentUserId, selectedConversation, loadConversations]);
+
+  // ========== ЗАГРУЗКА ДИАЛОГОВ И ВХОД В КОМНАТЫ ==========
+  useEffect(() => {
+    const loadAndJoin = async () => {
+      const token = api.getToken();
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_URL}/conversations`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            setConversations(data);
+            
+            if (socketService.isConnected() && data.length > 0) {
+              data.forEach(conv => {
+                const roomName = `conversation_${conv.id}`;
+                console.log(`🔗 Auto-joining room: ${roomName}`);
+                socketService.socket?.emit('join_room', { room_id: roomName });
+              });
+            }
           }
         }
+      } catch (err) {
+        console.error('Error loading conversations:', err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error loading conversations:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  loadAndJoin();
-}, []);
+    };
+    
+    loadAndJoin();
+  }, []); // Пустой массив — выполняется один раз
 
+  // ========== ИНИЦИАЛИЗАЦИЯ ДИАЛОГА С ДРУГИМ ПОЛЬЗОВАТЕЛЕМ ==========
   useEffect(() => {
     if (!otherUserId) return;
 
@@ -200,63 +197,64 @@ useEffect(() => {
     initConversation();
   }, [otherUserId, otherUserName, otherUserAvatar, loadConversations, loadMessages, joinConversationRoom]);
 
+  // ========== ОТПРАВКА СООБЩЕНИЯ ==========
   const sendMessage = async (e) => {
-  e.preventDefault();
-  if (!newMessage.trim() || sending) return;
+    e.preventDefault();
+    if (!newMessage.trim() || sending) return;
 
-  setSending(true);
-  const messageContent = newMessage.trim();
-  setNewMessage('');
+    setSending(true);
+    const messageContent = newMessage.trim();
+    setNewMessage('');
 
-  try {
-    const token = api.getToken();
-    
-    if (socketService.isConnected()) {
-      console.log('📤 Sending via WebSocket');
-      socketService.socket?.emit('send_message', {
-        receiver_id: selectedConversation.other_user_id,
-        content: messageContent
-      });
-    } else {
-      const tempMessage = {
-        id: 'temp-' + Date.now(),
-        sender_id: currentUserId,
-        receiver_id: selectedConversation?.other_user_id,
-        content: messageContent,
-        created_at: new Date().toISOString(),
-        is_temp: true
-      };
-      setMessages(prev => [...prev, tempMessage]);
-      scrollToBottom();
+    try {
+      const token = api.getToken();
       
-      const response = await fetch(`${API_URL}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      if (socketService.isConnected()) {
+        console.log('📤 Sending via WebSocket');
+        socketService.socket?.emit('send_message', {
           receiver_id: selectedConversation.other_user_id,
           content: messageContent
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setMessages(prev => prev.map(msg =>
-          msg.id === tempMessage.id ? result : msg
-        ));
-        loadConversations();
+        });
       } else {
-        throw new Error('Failed to send');
+        const tempMessage = {
+          id: 'temp-' + Date.now(),
+          sender_id: currentUserId,
+          receiver_id: selectedConversation?.other_user_id,
+          content: messageContent,
+          created_at: new Date().toISOString(),
+          is_temp: true
+        };
+        setMessages(prev => [...prev, tempMessage]);
+        scrollToBottom();
+        
+        const response = await fetch(`${API_URL}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            receiver_id: selectedConversation.other_user_id,
+            content: messageContent
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setMessages(prev => prev.map(msg =>
+            msg.id === tempMessage.id ? result : msg
+          ));
+          loadConversations();
+        } else {
+          throw new Error('Failed to send');
+        }
       }
+    } catch (err) {
+      console.error('Error sending message:', err);
+    } finally {
+      setSending(false);
     }
-  } catch (err) {
-    console.error('Error sending message:', err);
-  } finally {
-    setSending(false);
-  }
-};
+  };
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -270,6 +268,7 @@ useEffect(() => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  // ========== РЕНДЕР (ПОСЛЕ ВСЕХ ХУКОВ) ==========
   if (loading) {
     return (
       <div className="messenger">
@@ -303,9 +302,9 @@ useEffect(() => {
                 className={`conversation-item ${selectedConversation?.id === conv.id ? 'active' : ''}`}
                 onClick={() => {
                   console.log(`🔄 Switching to conversation: ${conv.id}`);
+                  roomJoinedRef.current = false;
                   setSelectedConversation(conv);
                   loadMessages(conv.id);
-                  // Вход в новую комнату
                   if (socketService.isConnected()) {
                     const roomName = `conversation_${conv.id}`;
                     socketService.socket?.emit('join_room', { room_id: roomName });
