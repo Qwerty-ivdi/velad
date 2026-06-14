@@ -21,9 +21,8 @@ function AppContent() {
   const [user, setUser] = useState(null);
   const [showMessenger, setShowMessenger] = useState(false);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate(); // ✅ Добавлен navigate
+  const navigate = useNavigate();
 
-  // ✅ ВСЕ ХУКИ В НАЧАЛЕ, ДО ЛЮБОГО RETURN
   useEffect(() => {
     const token = api.getToken();
     const storedUser = api.getUser();
@@ -48,7 +47,6 @@ function AppContent() {
     api.removeUser();
     socketService.disconnect();
     setUser(null);
-    navigate('/login');
   };
 
   const openMessenger = () => {
@@ -59,7 +57,6 @@ function AppContent() {
     setShowMessenger(false);
   };
 
-  // ✅ УСЛОВНЫЙ РЕНДЕР ПОСЛЕ ВСЕХ ХУКОВ
   if (loading) {
     return <div className="loading-screen">Загрузка...</div>;
   }

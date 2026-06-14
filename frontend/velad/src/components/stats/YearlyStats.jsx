@@ -12,7 +12,15 @@ const YearlyStats = ({ token, user }) => {
   const [isTwitchConnected, setIsTwitchConnected] = useState(false);  // ← ДОБАВЬ ЭТО!
   const [year] = useState(new Date().getFullYear());
 
-  // Проверяем, связан ли Twitch аккаунт
+  useEffect(() => {
+    if (isTwitchConnected) {
+      loadStats();
+    } else {
+      setLoading(false);
+    }
+  }, [year, isTwitchConnected]);
+
+
   useEffect(() => {
     const checkTwitchStatus = async () => {
       try {
@@ -28,14 +36,6 @@ const YearlyStats = ({ token, user }) => {
     
     checkTwitchStatus();
   }, [token]);
-
-  useEffect(() => {
-    if (isTwitchConnected) {
-      loadStats();
-    } else {
-      setLoading(false);
-    }
-  }, [year, isTwitchConnected]);
 
 const loadStats = async () => {
   setLoading(true);
@@ -80,7 +80,7 @@ const loadStats = async () => {
     return (
       <div className="stats-container">
         <div className="stats-header">
-          <h1>🎯 Статистика</h1>
+          <h1>Статистика</h1>
           <div className="loading-spinner"></div>
           <p>Загрузка вашей статистики...</p>
         </div>
@@ -113,7 +113,7 @@ const loadStats = async () => {
     return (
       <div className="stats-container">
         <div className="stats-header">
-          <h1>🎯 Статистика</h1>
+          <h1>Статистика</h1>
           <p>У вас пока нет статистики</p>
         </div>
         <div className="stats-empty">
@@ -132,7 +132,7 @@ const loadStats = async () => {
     return (
       <div className="stats-container">
         <div className="stats-header">
-          <h1>🎯 Статистика</h1>
+          <h1>Статистика</h1>
           <div className="stats-error">
             <p>Ошибка загрузки статистики: {error}</p>
             <button onClick={loadStats} className="retry-btn">Повторить</button>
