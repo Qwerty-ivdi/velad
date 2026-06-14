@@ -88,21 +88,32 @@ export const api = {
   },
 
   async getProfile(token) {
-  console.log('📡 getProfile called with token:', token ? token.substring(0, 50) + '...' : 'null');
-  console.log('📡 API_URL:', API_URL);
-  
-  const response = await fetch(`${API_URL}/profile`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  
-  console.log('📡 Profile response status:', response.status);
-  
-  const result = await response.json();
-  console.log('📡 Profile response data:', result);
-  
-  if (!response.ok) throw new Error(result.error || 'Ошибка получения профиля');
-  return result;
-},
+    console.log('📡 getProfile called with token:', token ? token.substring(0, 50) + '...' : 'null');
+    
+    if (!token) {
+      throw new Error('No token provided');
+    }
+    
+    const response = await fetch(`${API_URL}/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    console.log('📡 Profile response status:', response.status);
+    
+    if (response.status === 401) {
+      // Токен просрочен или невалиден
+      throw new Error('Token expired');
+    }
+    
+    if (!response.ok) {
+      const result = await response.json();
+      throw new Error(result.error || 'Ошибка получения профиля');
+    }
+    
+    const result = await response.json();
+    console.log('📡 Profile response data:', result);
+    return result;
+  },
 
   // ==================== ХРАНЕНИЕ ТОКЕНА ====================
   setToken(token) {

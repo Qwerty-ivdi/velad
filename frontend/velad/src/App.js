@@ -24,22 +24,42 @@ function AppContent() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = api.getToken();
-    const storedUser = api.getUser();
-    
-    if (token && storedUser) {
-      // Проверяем, что токен всё ещё валиден
-      api.getProfile(token).then(profile => {
+    const checkAuth = async () => {
+      const token = api.getToken();
+      const storedUser = api.getUser();
+      
+      console.log('🔍 Checking auth, token exists:', !!token);
+      
+      if (!token || !storedUser) {
+        console.log('❌ No token or stored user, redirecting to login');
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        // Пытаемся получить профиль, чтобы проверить валидность токена
+        const profile = await api.getProfile(token);
+        console.log('✅ Profile loaded:', profile);
         setUser(profile);
         api.setUser(profile);
-      }).catch(() => {
-        // Токен невалиден — очищаем
+        
+        // Подключаем Socket.IO для авторизованного пользователя
+        if (profile.id) {
+          socketService.connect(profile.id, token);
+        }
+      } catch (error) {
+        console.error('❌ Token validation failed:', error);
+        // Токен невалиден — очищаем всё
         api.removeToken();
         api.removeUser();
+        socketService.disconnect();
         setUser(null);
-      });
-    }
-    setLoading(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkAuth();
   }, []);
 
   const handleLogout = () => {
@@ -47,6 +67,7 @@ function AppContent() {
     api.removeUser();
     socketService.disconnect();
     setUser(null);
+    navigate('/login');
   };
 
   const openMessenger = () => {
@@ -58,7 +79,12 @@ function AppContent() {
   };
 
   if (loading) {
-    return <div className="loading-screen">Загрузка...</div>;
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner"></div>
+        <p>Загрузка...</p>
+      </div>
+    );
   }
 
   return (
@@ -71,16 +97,17 @@ function AppContent() {
       
       <div className="main-content">
         <Routes>
-          <Route path="/" element={<Navigate to="/streams" />} />
-          <Route path="/login" element={<LoginPage setUser={setUser} />} />
-          <Route path="/register" element={<RegisterPage setUser={setUser} />} />
+          {/* Если пользователь авторизован, отправляем на /streams, иначе на /login */}
+          <Route path="/" element={user ? <Navigate to="/streams" /> : <Navigate to="/login" />} />
+          <Route path="/login" element={user ? <Navigate to="/streams" /> : <LoginPage setUser={setUser} />} />
+          <Route path="/register" element={user ? <Navigate to="/streams" /> : <RegisterPage setUser={setUser} />} />
           <Route path="/auth/callback" element={<AuthCallback setUser={setUser} />} />
-          <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} />} />
+          <Route path="/profile" element={user ? <ProfilePage user={user} setUser={setUser} /> : <Navigate to="/login" />} />
           <Route path="/profile/:userId" element={<ProfilePage user={user} setUser={setUser} />} />
           <Route path="/streams" element={<StreamsPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/stream/:channel" element={<TwitchPlayer token={api.getToken()} currentUser={user} />} />
-          <Route path="/stats" element={<YearlyStats token={api.getToken()} user={user} />} />
+          <Route path="/stats" element={user ? <YearlyStats token={api.getToken()} user={user} /> : <Navigate to="/login" />} />
         </Routes>
       </div>
       
@@ -97,7 +124,6 @@ function AppContent() {
     </div>
   );
 }
-
 
 function App() {
   return (
