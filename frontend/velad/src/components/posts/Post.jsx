@@ -1,4 +1,3 @@
-// src/components/posts/Post.jsx
 import React, { useState } from 'react';
 import { api } from '../../lib/supabase';
 import { FaHeart, FaRegHeart, FaComment, FaShare, FaEdit, FaTrash, FaTimes, FaCheck, FaRetweet } from 'react-icons/fa';

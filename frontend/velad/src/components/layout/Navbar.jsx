@@ -1,4 +1,3 @@
-// src/components/common/Navbar.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FaSearch, FaTv, FaChartBar, FaEnvelope, FaSignOutAlt, FaTwitch, FaUserPlus, FaBars, FaTimes } from 'react-icons/fa';
@@ -17,7 +16,6 @@ const Navbar = ({ user, onLogout, onOpenMessenger }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Закрываем меню при смене страницы
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
@@ -43,7 +41,6 @@ const Navbar = ({ user, onLogout, onOpenMessenger }) => {
             </Link>
           </div>
 
-          {/* Десктопная навигация (показывается на экранах > 768px) */}
           <div className="navbar-links desktop-only">
             <Link to="/streams" className={`nav-link ${isActive('/streams') ? 'active' : ''}`}>
               <FaTv />
@@ -61,7 +58,6 @@ const Navbar = ({ user, onLogout, onOpenMessenger }) => {
             )}
           </div>
 
-          {/* Десктопный пользовательский блок */}
           <div className="navbar-user desktop-only">
             {user ? (
               <>
@@ -98,14 +94,12 @@ const Navbar = ({ user, onLogout, onOpenMessenger }) => {
             )}
           </div>
 
-          {/* Кнопка бургер-меню (только на мобильных) */}
           <button className="mobile-menu-btn mobile-only" onClick={toggleMobileMenu}>
             {mobileMenuOpen ? <FaTimes /> : <FaBars />}
           </button>
         </div>
       </nav>
 
-      {/* Мобильное меню (выезжающее) */}
       <div className={`mobile-menu ${mobileMenuOpen ? 'open' : ''}`}>
         <div className="mobile-menu-content">
           {/* Навигационные ссылки */}
@@ -126,7 +120,6 @@ const Navbar = ({ user, onLogout, onOpenMessenger }) => {
             )}
           </div>
 
-          {/* Разделитель */}
           <div className="mobile-menu-divider"></div>
 
           {/* Пользовательский блок для мобильных */}
@@ -180,7 +173,6 @@ const Navbar = ({ user, onLogout, onOpenMessenger }) => {
         </div>
       </div>
 
-      {/* Затемнение фона при открытом меню */}
       {mobileMenuOpen && <div className="mobile-menu-overlay" onClick={closeMobileMenu}></div>}
     </>
   );

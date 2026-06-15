@@ -1,4 +1,3 @@
-// src/components/profile/ProfileHeader.jsx
 import React, { useEffect, useState} from 'react';
 import { FaTwitch, FaCalendar, FaMapMarkerAlt, FaLink } from 'react-icons/fa';
 

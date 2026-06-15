@@ -1,4 +1,3 @@
-// src/components/messenger/Messenger.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../lib/supabase';
 import { API_URL } from '../../config';
@@ -67,7 +66,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     }
   }, [loadConversations]);
 
-  // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ (ОДИН РАЗ) ==========
+  // ========== WEBSOCKET ПОДКЛЮЧЕНИЕ ==========
   useEffect(() => {
     if (!currentUserId || socketConnectedRef.current) return;
     
@@ -98,7 +97,7 @@ const Messenger = ({ currentUserId, otherUserId, otherUserName, otherUserAvatar,
     return () => unsubscribe();
   }, [selectedConversation, loadConversations]);
 
-  // ========== ВХОД ВО ВСЕ КОМНАТЫ ПОСЛЕ АУТЕНТИФИКАЦИИ ==========
+  
 useEffect(() => {
   const handleAuthenticated = () => {
     console.log('✅ Authenticated, joining ALL rooms...');
@@ -123,7 +122,7 @@ useEffect(() => {
   };
 }, [loadConversations]);
 
-  // ========== ЗАГРУЗКА ДИАЛОГОВ ПРИ МОНТИРОВАНИИ ==========
+  // ========== ЗАГРУЗКА ДИАЛОГОВ ==========
   useEffect(() => {
     isMounted.current = true;
     

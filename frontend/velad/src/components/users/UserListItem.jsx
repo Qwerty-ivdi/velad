@@ -1,4 +1,3 @@
-// src/components/users/UserListItem.jsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/supabase';

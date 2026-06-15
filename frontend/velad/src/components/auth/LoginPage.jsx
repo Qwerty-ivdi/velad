@@ -1,4 +1,3 @@
-// src/components/auth/LoginPage.jsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api, twitchAuth } from '../../lib/supabase';
@@ -36,7 +35,6 @@ const LoginPage = ({ setUser }) => {
     setTwitchLoading(true);
     
     twitchAuth.login(() => {
-      // После закрытия popup проверяем, авторизован ли пользователь
       const token = api.getToken();
       if (token) {
         window.location.reload();
@@ -45,7 +43,6 @@ const LoginPage = ({ setUser }) => {
       }
     });
     
-    // Слушаем сообщение от popup после успешного входа
     window.addEventListener('message', (event) => {
       if (event.data === 'twitch_auth_success') {
         setTwitchLoading(false);

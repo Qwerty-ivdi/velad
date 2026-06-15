@@ -1,4 +1,3 @@
-// src/lib/supabase.js
 import { API_URL } from '../config.js';
 
 export const api = {
@@ -101,7 +100,6 @@ export const api = {
     console.log('📡 Profile response status:', response.status);
     
     if (response.status === 401) {
-      // Токен просрочен или невалиден
       throw new Error('Token expired');
     }
     

@@ -1,4 +1,3 @@
-// src/components/auth/AuthCallback.jsx
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../../lib/supabase';
@@ -28,7 +27,6 @@ const AuthCallback = ({ setUser }) => {
           api.setUser(user);
           if (setUser) setUser(user);
           
-          // ✅ ПОДКЛЮЧАЕМ СОКЕТ ПОСЛЕ СОХРАНЕНИЯ ПОЛЬЗОВАТЕЛЯ
           console.log('🔌 Connecting socket for Twitch user:', user.id);
           socketService.connect(user.id, accessToken);
           

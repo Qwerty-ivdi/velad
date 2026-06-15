@@ -1,4 +1,3 @@
-// src/services/socket.js
 import { io } from 'socket.io-client';
 
 class SocketService {
@@ -12,19 +11,16 @@ class SocketService {
   }
 
   connect(userId, token) {
-    // Уже подключены к этому пользователю
     if (this.socket?.connected && this.currentUserId === userId) {
       console.log('✅ Socket already connected for user:', userId);
       return this.socket;
     }
 
-    // Уже в процессе подключения
     if (this.isConnecting) {
       console.log('⏳ Socket already connecting, waiting...');
       return this.socket;
     }
 
-    // Отключаемся от старого пользователя
     if (this.socket) {
       console.log(`🔌 Disconnecting from old user: ${this.currentUserId}`);
       this.disconnect();

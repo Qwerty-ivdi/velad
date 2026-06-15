@@ -1,4 +1,3 @@
-// src/components/twitch/StreamsPage.jsx
 import React, { useState, useEffect } from 'react';
 import TwitchStreamCard from './TwitchStreamCard';
 import { FaSearch, FaTwitch, FaFire } from 'react-icons/fa';

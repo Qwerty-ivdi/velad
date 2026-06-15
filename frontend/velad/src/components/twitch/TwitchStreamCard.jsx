@@ -1,4 +1,3 @@
-// src/components/twitch/TwitchStreamCard.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaTwitch, FaUsers, FaGamepad, FaCalendar, FaHeart, FaShare } from 'react-icons/fa';

@@ -1,4 +1,3 @@
-// src/components/profile/ProfilePage.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../lib/supabase';

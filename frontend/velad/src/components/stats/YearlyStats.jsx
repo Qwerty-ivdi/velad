@@ -1,4 +1,3 @@
-// src/components/stats/YearlyStats.jsx
 import React, { useState, useEffect } from 'react';
 import { api, twitchAuth } from '../../lib/supabase';
 import { API_URL } from '../../config';
@@ -9,7 +8,7 @@ const YearlyStats = ({ token, user }) => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isTwitchConnected, setIsTwitchConnected] = useState(false);  // ← ДОБАВЬ ЭТО!
+  const [isTwitchConnected, setIsTwitchConnected] = useState(false);
   const [year] = useState(new Date().getFullYear());
 
   useEffect(() => {
@@ -46,7 +45,7 @@ const loadStats = async () => {
     });
     
     const data = await response.json();
-    console.log('Stats response:', data);  // Добавь лог
+    console.log('Stats response:', data); 
     
     if (response.ok) {
       setStats(data);
@@ -75,7 +74,6 @@ const loadStats = async () => {
     return icons[type] || <FaHeart />;
   };
 
-  // Если загрузка
   if (loading) {
     return (
       <div className="stats-container">

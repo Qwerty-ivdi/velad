@@ -48,7 +48,6 @@ const RegisterPage = ({ setUser }) => {
       display_name: formData.displayName
     });
 
-    // Регистрация
     const registerResult = await api.register({
       email: formData.email,
       password: formData.password,
@@ -58,7 +57,6 @@ const RegisterPage = ({ setUser }) => {
     
     console.log('✅ Registration successful:', registerResult);
 
-    // Автоматический вход после регистрации
     const loginResult = await api.login({
       email: formData.email,
       password: formData.password
@@ -76,7 +74,6 @@ const RegisterPage = ({ setUser }) => {
     console.error('❌ Error message:', err.message);
     console.error('❌ Full error object:', JSON.stringify(err, null, 2));
     
-    // Показываем более подробную ошибку
     setError(err.message || 'Ошибка регистрации. Проверьте консоль.');
   } finally {
     setLoading(false);

@@ -1,4 +1,3 @@
-// src/components/posts/CreatePost.jsx
 import React, { useState } from 'react';
 import { FaImage, FaTimes } from 'react-icons/fa';
 import { API_URL } from '../../config';
@@ -10,9 +9,9 @@ const CreatePost = ({ token, onPostCreated }) => {
   const [error, setError] = useState(null);
 
   // Максимальные ограничения
-  const MAX_IMAGES = 4;  // максимум 4 изображения на пост
-  const MAX_FILE_SIZE_MB = 2;  // максимум 2MB на изображение
-  const MAX_TOTAL_SIZE_MB = 5;  // максимум 5MB на все изображения
+  const MAX_IMAGES = 4;  
+  const MAX_FILE_SIZE_MB = 2;  
+  const MAX_TOTAL_SIZE_MB = 5;  
 
   const compressImage = (file) => {
     return new Promise((resolve, reject) => {
@@ -22,7 +21,6 @@ const CreatePost = ({ token, onPostCreated }) => {
         const img = new Image();
         img.src = event.target.result;
         img.onload = () => {
-          // Вычисляем новые размеры (максимум 1200px по ширине или высоте)
           let width = img.width;
           let height = img.height;
           const maxSize = 1200;

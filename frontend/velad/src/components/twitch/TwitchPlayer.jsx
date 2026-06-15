@@ -1,4 +1,3 @@
-// src/components/twitch/TwitchPlayer.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/supabase';

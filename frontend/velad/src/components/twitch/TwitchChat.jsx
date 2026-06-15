@@ -1,4 +1,3 @@
-// src/components/twitch/TwitchChat.jsx
 import React, { useEffect, useRef } from 'react';
 import { api } from '../../lib/supabase';
 
