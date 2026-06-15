@@ -27,11 +27,9 @@ def validate_username(username):
 
 def get_backend_url():
     """Получить URL бэкенда из переменной окружения"""
-    # Приоритет: переменная окружения
     url = os.environ.get('BACKEND_URL')
     if url:
         return url.rstrip('/')
-    # На Railway используем правильный URL
     return 'https://velad-production.up.railway.app'
 
 

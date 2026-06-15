@@ -1,4 +1,3 @@
-# app/services/twitch_service.py
 import requests
 from datetime import datetime, timedelta
 

@@ -17,7 +17,7 @@ def get_user_from_token(token):
             current_app.config['SECRET_KEY'],
             algorithms=['HS256']
         )
-        user_id = payload.get('sub')  # Используем 'sub'
+        user_id = payload.get('sub')
         if user_id:
             return {'id': user_id}
         return None
@@ -62,7 +62,7 @@ def get_profile():
             'followers_count': user.get('followers_count', 0),
             'following_count': user.get('following_count', 0),
             'posts_count': user.get('posts_count', 0),
-            'is_following': False  # Для своего профиля всегда false
+            'is_following': False
         }), 200
 
     except Exception as e:
@@ -116,7 +116,6 @@ def get_profile_by_id(user_id):
                 print(f"🔍 Target user ID: {user_id}")
 
                 if current_user_id and str(current_user_id) != str(user_id):
-                    # ПРЯМОЙ SQL ЗАПРОС С ПРИВЕДЕНИЕМ ТИПОВ
                     query = """
                         SELECT COUNT(*) as count FROM follows 
                         WHERE follower_id = %s::uuid AND following_id = %s::uuid

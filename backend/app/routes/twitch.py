@@ -134,7 +134,7 @@ def search_channel():
         if not headers:
             return jsonify([]), 200
 
-        # Сначала получаем ID канала
+        # получаем ID канала
         user_url = f'https://api.twitch.tv/helix/users?login={channel_name}'
         user_response = requests.get(user_url, headers=headers)
 

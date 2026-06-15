@@ -33,7 +33,6 @@ def ensure_array(value):
                 return parsed
             return [parsed] if parsed else []
         except:
-            # Если не JSON, возможно это уже data:image строка
             if value.startswith('data:image'):
                 return [value]
             return []
@@ -149,7 +148,6 @@ def create_post():
     post_type = data.get('post_type', 'text')
     media_urls = data.get('media_urls', [])
 
-    # Гарантируем, что media_urls - массив
     if not isinstance(media_urls, list):
         media_urls = [media_urls] if media_urls else []
 
@@ -159,7 +157,6 @@ def create_post():
     post_id = uuid.uuid4()
     now = datetime.now()
 
-    # Преобразуем массив в JSON строку для PostgreSQL
     media_json = json.dumps(media_urls)
 
     query = """
@@ -235,7 +232,6 @@ def get_post(post_id):
         if not post:
             return jsonify({'error': 'Пост не найден'}), 404
 
-        # Нормализуем media_urls
         post['media_urls'] = ensure_array(post.get('media_urls'))
 
         # Проверяем, поставил ли текущий пользователь лайк
@@ -587,7 +583,7 @@ def get_comments(post_id):
         limit = request.args.get('limit', 50, type=int)
         offset = request.args.get('offset', 0, type=int)
 
-        # Получаем корневые комментарии (без parent_id)
+        # Получаем корневые комментарии
         root_comments = db_service.execute_query("""
             SELECT c.id, c.post_id, c.user_id, c.parent_id, c.content, 
                    c.level, c.replies_count, c.created_at, c.updated_at,

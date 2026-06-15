@@ -99,11 +99,11 @@ def watch_heartbeat():
 
 
 @stats_bp.route('/track/view/end', methods=['POST'])
-@jwt_required()  # 👈 ДОБАВЬТЕ ЭТО
+@jwt_required()
 def end_watch_session():
     """Завершить отслеживание просмотра"""
     try:
-        user_id = get_jwt_identity()  # 👈 ИСПОЛЬЗУЙТЕ ЭТО
+        user_id = get_jwt_identity()
         data = request.get_json()
         session_id = data.get('session_id')
 

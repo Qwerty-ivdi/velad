@@ -1,4 +1,3 @@
-# app/__init__.py
 from flask import Flask, request, send_from_directory
 from pathlib import Path
 from flask import make_response

@@ -4,7 +4,7 @@ from flask import request
 import uuid
 from datetime import datetime
 
-socket_users = {}  # sid → user_id
+socket_users = {}
 
 
 def register_socket_handlers(socketio, db_service):
@@ -107,7 +107,7 @@ def register_socket_handlers(socketio, db_service):
                 'sender_avatar_url': sender_data.get('avatar_url')
             }
 
-            # ✅ ОТПРАВЛЯЕМ В КОМНАТУ ДИАЛОГА (ОБЩУЮ ДЛЯ ДВУХ ПОЛЬЗОВАТЕЛЕЙ)
+            # ОТПРАВЛЯЕМ В КОМНАТУ ДИАЛОГА
             room_name = f"conversation_{conversation_id}"
             emit('new_message', message_data, room=room_name)
 

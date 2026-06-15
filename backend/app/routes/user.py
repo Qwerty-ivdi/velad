@@ -49,7 +49,7 @@ def test():
 
 
 @user_bp.route('/twitch-token', methods=['GET'])
-@jwt_required()  # 👈 ВОЗВРАЩАЕМ JWT ПРОВЕРКУ
+@jwt_required()
 def get_twitch_token():
     """Вернуть валидный токен Twitch для текущего пользователя"""
     print("=" * 50)
